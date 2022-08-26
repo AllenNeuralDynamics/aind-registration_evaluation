@@ -14,7 +14,11 @@ dynamic = ["version", "readme"]
 
 dependencies = [
     'pandas',
-    'sphinx'
+    'sphinx',
+    'aicsimageio',
+    'argschema',
+    'scikit-image',
+    'ome-zarr'
 ]
 
 [project.optional-dependencies]
