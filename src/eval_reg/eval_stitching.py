@@ -16,7 +16,7 @@ example_input = {
     "datatype": "dummy",
     "metric": "SSD",
     "windowsize": 0,
-    "samplinginfo": { "type": "random", "numpoints": 1}
+    "samplinginfo": { "type": "random", "numpoints": 10}
 }
 class SamplingArgsSchema(ArgSchema):
     type = Str(metadata={"required":False, "description":"Type of "})
@@ -49,7 +49,7 @@ class EvalStitching (ArgSchemaParser):
         I1, I2, transform = iotools.get_data(self.args)
 
         #calculate extent of overlap using transforms in common coordinate system (assume for image 1)
-        bounds1,bounds2 = utils.calculate_bounds(I2.shape,transform)
+        bounds1,bounds2 = utils.calculate_bounds(I1.shape, I2.shape,transform)
 
         #Sample points in overlapping bounds
         pts = utils.sample_points_in_overlap(bounds1, bounds2,self.args['samplinginfo'])
