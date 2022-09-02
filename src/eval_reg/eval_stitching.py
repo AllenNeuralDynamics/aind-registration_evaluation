@@ -18,10 +18,19 @@ example_input = {
     "windowsize": 0,
     "samplinginfo": { "type": "random", "numpoints": 10}
 }
+
 class SamplingArgsSchema(ArgSchema):
+    """
+    Nested schema for sampling args.
+    """
+
     type = Str(metadata={"required":False, "description":"Type of "})
     numpoints = Int(metadata={"required":False, "description":"Number of points to sample"})
+
 class EvalRegSchema(ArgSchema):
+    """
+    Schema format for Evaluate Stitching.
+    """
     image1 = Str(metadata={"required":True, "description":"Image 1 location"})
     image2 = Str(metadata={"required":True, "description":"Image 2 location"})
     transform = Str(metadata={"required":True, "description":"json with transformation relating Images 1 and 2"})
@@ -29,20 +38,17 @@ class EvalRegSchema(ArgSchema):
     metric = Str(metadata={"required":True, "description":"SSD / NCC"})
     windowsize = Int(metadata={"required":True, "description":"Size of window across which to calculate metric"})
     samplinginfo = Nested(SamplingArgsSchema,required=False,default={},description='schema for sampling points')
+
 class EvalStitching (ArgSchemaParser):
     """
     Class to Evaluate Stitching.
     """
-
     default_schema = EvalRegSchema
 
-    
     def run(self):
         """
-       
         Args:
             Evaluate block
-        
         """
 
         #read data/pointers and linear transform 

@@ -7,6 +7,9 @@ import scipy
 
 
 def get_patches(I1, I2, pt1,pt2,X,Y,Z,datatype):
+    """
+    Function to return patches to be compared.
+    """
     if datatype != "large":
         Patch1 = I1[pt1[0],pt1[1],pt1[2]]
         Patch2 = scipy.interpolate.interpn((X,Y,Z), I2, [pt2])[0]
@@ -14,8 +17,8 @@ def get_patches(I1, I2, pt1,pt2,X,Y,Z,datatype):
 
 
 def calculate_metrics(pt1, I1, I2, transform, args):
-        """Given a pair of points, the images and the transform, 
-           Calculate metrics for window size. If windowsize = 0, calculate just for one point"""
+    """Given a pair of points, the images and the transform, 
+        Calculate metrics for window size. If windowsize = 0, calculate just for one point"""
 
         
         X = np.linspace(0, I2.shape[0], I2.shape[0])  
@@ -40,6 +43,9 @@ def calculate_metrics(pt1, I1, I2, transform, args):
         return met
 
 def compute_metric_for_patch(f1,f2,metrictype):
+    """
+    Function that decides which metric to calculate
+    """
     if metrictype == "SSD":
         met = mean_squared(f1,f2)
     return met    

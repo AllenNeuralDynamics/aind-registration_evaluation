@@ -1,13 +1,18 @@
 import numpy as np
 
 def get_data(args):
+    """
+    Function to get input data based on user input.
+    """
     if args['datatype'] == 'dummy':
         return create_sample_data()
     else:
         return 0,0,0
 
 def create_sample_data():
-
+    """
+    Function to create dummy data.
+    """
     def value_func_3d(x, y, z):
         return 1 * x + 1 * y - z
 

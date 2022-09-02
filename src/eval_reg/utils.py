@@ -28,8 +28,12 @@ def sample_points_in_overlap(bounds1, bounds2, args ):
 
     
 
-    def calculate_bounds(image1_shape, image2_shape, transform):
-        
+def calculate_bounds(image1_shape, image2_shape, transform):
+    """
+    Calculate bounds of coverage for two images and a transform
+    where image1 is in its own coordinate system and image 2 is mapped
+    to image 1's coords with the transform
+    """
         b1 = [[0,0,0],list(image1_shape)]
         pt_min = np.matrix([0,0,0,1]).transpose()
         pt_max = np.matrix(list(image2_shape)+[1]).transpose()
