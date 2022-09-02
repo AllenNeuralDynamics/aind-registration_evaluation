@@ -2,24 +2,32 @@
 """
 
 from argschema import ArgSchemaParser, ArgSchema
-from argschema.fields import Str
+from argschema.fields import Str , Int, Nested
 import random
 import numpy as np
 import metrics
-import scipy
+import iotools
 
 example_input = {
     "image1": "test1/",
-    #"image2": "test2/",
-    #"transformjson": "transform.json"
+    "image2": "test2/",
+    "transform": "transform.json",
+    "datatype": "dummy",
+    "metric": "SSD",
+    "windowsize": 0,
+    "samplinginfo": { "type": "random", "numpoints": 1}
 }
+class SamplingArgsSchema(ArgSchema):
+    type = Str(metadata={"required":False, "description":"Type of "})
+    numpoints = Int(metadata={"required":False, "description":"Number of points to sample"})
 class EvalRegSchema(ArgSchema):
     image1 = Str(metadata={"required":True, "description":"Image 1 location"})
     image2 = Str(metadata={"required":True, "description":"Image 2 location"})
-    transformjson = Str(metadata={"required":True, "description":"json with transformation relating Images 1 and 2"})
-    
-
-
+    transform = Str(metadata={"required":True, "description":"json with transformation relating Images 1 and 2"})
+    datatype = Str(metadata={"required":True, "description":"Type of data: Dummy, Small (Read into memory), Large (not loaded in memory)"})
+    metric = Str(metadata={"required":True, "description":"SSD / NCC"})
+    windowsize = Int(metadata={"required":True, "description":"Size of window across which to calculate metric"})
+    samplinginfo = Nested(SamplingArgsSchema,required=False,default={},description='schema for sampling points')
 class EvalStitching (ArgSchemaParser):
     """
     Class to Evaluate Stitching.
@@ -27,7 +35,7 @@ class EvalStitching (ArgSchemaParser):
 
     default_schema = EvalRegSchema
 
-    def sample_points_in_overlap(self,bounds1, bounds2, args={"numpoints":20, "type": "random"} ):
+    def sample_points_in_overlap(self,bounds1, bounds2, args ):
         """samples points in the overlap regions 
            and returns a list of points
            sampling types : random, grid, feature extracted
@@ -53,31 +61,11 @@ class EvalStitching (ArgSchemaParser):
 
         return list(np.array([x,y,z]).transpose())
 
-    def calculate_metrics(self,pt1, I1, I2, transform, windowsize = 0):
-        """Given a pair of points, the images and the transform, 
-           Calculate metrics for window size. If windowsize = 0, calculate just for one point"""
+    
 
-        
-        pt2 = (np.linalg.inv(transform)*np.matrix(list(pt1)+[1]).transpose())[:3]
-        print(pt2)
-        X = np.linspace(0, I2.shape[0], I2.shape[0])  
-        Y = np.linspace(0, I2.shape[1], I2.shape[1])  
-        Z = np.linspace(0, I2.shape[2], I2.shape[2])   
-        
-        if windowsize == 0:
-            Patch1 = I1[pt1[0],pt1[1],pt1[2]]
-            Patch2check = I2[int(pt2[0]),int(pt2[1]),int(pt2[2])]
-            Patch2 = scipy.interpolate.interpn((X,Y,Z), I2, [pt2])
-
-            
-            
-        #return metrics.mean_squared_error(Patch1,Patch2)
-        print(Patch1, Patch2, Patch2check)
-        
-
-    def calculate_bounds(self,I, transform):
+    def calculate_bounds(self,image_shape, transform):
         pt_min = np.matrix([0,0,0,1]).transpose()
-        pt_max = np.matrix(list(I.shape)+[1]).transpose()
+        pt_max = np.matrix(list(image_shape)+[1]).transpose()
         ret = [np.squeeze(transform*pt_min).tolist()[0][:3],
                np.squeeze(transform*pt_max).tolist()[0][:3]]  
              
@@ -90,27 +78,26 @@ class EvalStitching (ArgSchemaParser):
             Evaluate block
         
         """
-        #get sizes of images and transform
-        I1 = np.random.random((10,10,10))
-        I2 = I1
-        transform = np.matrix([[1,0,0,3],[0,1,0,3],[0,0,1,3],[0,0,0,1]])
+
+        #read data/pointers and linear transform 
+        I1, I2, transform = iotools.get_data(self.args)
 
         #calculate extent of overlap using transforms in common coordinate system (assume for image 1)
         bounds1 = [[0,0,0],list(I1.shape)]
-        bounds2 = self.calculate_bounds(I2,transform)
+        bounds2 = self.calculate_bounds(I2.shape,transform)
 
         #Sample points in overlapping bounds
-        pts = self.sample_points_in_overlap(bounds1, bounds2)
-        print(pts)
+        pts = self.sample_points_in_overlap(bounds1, bounds2,self.args['samplinginfo'])
+        
         #calculate metrics
+        M = []
         for pt in pts:
-            self.calculate_metrics(pt, I1, I2, transform)
-            break
-
+            M.append(metrics.calculate_metrics(pt, I1, I2, transform,self.args))
+            
         #compute statistics
+        print("Mean : ", np.mean(M), " ,std: ", np.std(M))
 
-        return 1
-
+        
 if __name__ == '__main__':
     mod = EvalStitching(example_input)
     mod.run()
