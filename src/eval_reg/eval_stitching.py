@@ -15,8 +15,8 @@ example_input = {
     "transform": "transform.json",
     "datatype": "dummy",
     "metric": "SSD",
-    "windowsize": 0,
-    "samplinginfo": { "type": "random", "numpoints": 1000}
+    "windowsize": 2,
+    "samplinginfo": { "type": "random", "numpoints": 10}
 }
 
 class SamplingArgsSchema(ArgSchema):
@@ -59,11 +59,14 @@ class EvalStitching (ArgSchemaParser):
 
         #Sample points in overlapping bounds
         pts = utils.sample_points_in_overlap(bounds1, bounds2,self.args['samplinginfo'])
-        
+        pruned_pts = utils.prune_points_to_fit_window(pts, self.args['windowsize'], I1.shape)
+        print(pruned_pts)
         #calculate metrics
         M = []
-        for pt in pts:
-            M.append(metrics.calculate_metrics(pt, I1, I2, transform,self.args))
+        for pt in pruned_pts:
+            met = metrics.calculate_metrics(pt, I1, I2, transform,self.args)
+            if met is not None:
+                M.append(met)
             
         #compute statistics
         print("Mean : ", np.mean(M), " ,std: ", np.std(M))

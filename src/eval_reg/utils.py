@@ -23,7 +23,7 @@ def sample_points_in_overlap(bounds1, bounds2, args ):
             x = list(np.random.choice( range(o_min[0], o_max[0]), args['numpoints'] ))
             y = list(np.random.choice(range(o_min[1], o_max[1]), args['numpoints']))
             z = list(np.random.choice(range(o_min[2], o_max[2]), args['numpoints']))
-
+        
         return list(np.array([x,y,z]).transpose())
 
     
@@ -41,3 +41,15 @@ def calculate_bounds(image1_shape, image2_shape, transform):
             np.squeeze(transform*pt_max).tolist()[0][:3]]  
             
     return b1,b2 
+
+def prune_points_to_fit_window(pts, window_size, image_shape):
+    newpts = []
+    
+    for p in pts:
+        if (p[0]+window_size > image_shape[0]) | (p[1]+window_size > image_shape[1]) |(p[2]+window_size > image_shape[2]) :
+            print("skip point")
+        else:
+            newpts.append(p)
+
+    return newpts
+

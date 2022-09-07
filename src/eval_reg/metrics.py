@@ -11,9 +11,14 @@ def get_patches(I1, I2, pt1,pt2,X,Y,Z,datatype):
     Function to return patches to be compared.
     """
     if datatype != "large":
-        Patch1 = I1[pt1[0],pt1[1],pt1[2]]
-        Patch2 = scipy.interpolate.interpn((X,Y,Z), I2, [pt2])[0]
-    return Patch1, Patch2
+        pt1 = pt1.astype(int)
+        try:
+            Patch1 = I1[pt1[0], pt1[1], pt1[2]]
+            Patch2 = scipy.interpolate.interpn((X,Y,Z), I2, pt2.transpose())
+            return Patch1, Patch2
+        except:
+            return None,None        
+    
 
 
 def calculate_metrics(pt1, I1, I2, transform, args):
@@ -27,19 +32,23 @@ def calculate_metrics(pt1, I1, I2, transform, args):
     if args['windowsize'] == 0:
         pt2 = (np.linalg.inv(transform)*np.matrix(list(pt1)+[1]).transpose())[:3]
         pt2 = np.squeeze(np.asarray(pt2))
-        Patch1,Patch2 = get_patches(I1,I2, pt1,pt2,X,Y,Z, args['datatype'])
+        Patch1,Patch2 = get_patches(I1,I2, np.expand(pt1,axis=0),np.expand_dims(pt2,axis=0),X,Y,Z, args['datatype'])
         
     else:
-        print("need to work on this")
-        #pt1_X = np.linspace(pt1[0]-args['windowsize'], pt1[0]+args['windowsize'], pt1[0]-args['windowsize'])  
-        #pt1_Y = np.linspace(pt1[1]-args['windowsize'], pt1[1]-args['windowsize'], pt1[1]-args['windowsize'])  
-        #pt1_Z = np.linspace(pt1[2]-args['windowsize'], pt1[2]-args['windowsize'], pt1[2]-args['windowsize'])
-        #print(pt1_X.shape)
-        #pt1_win = np.vstack ([pt1_X, pt1_Y, pt1_Z])
-        #print(pt1_win)
-    met = compute_metric_for_patch(Patch1,Patch2,args['metric'])
+        #print("need to work on this")
+        pt1_X = np.expand_dims(np.linspace(pt1[0]-args['windowsize'], pt1[0]+args['windowsize'], 2*args['windowsize']+1)  , axis=0)
+        pt1_Y = np.expand_dims(np.linspace(pt1[1]-args['windowsize'], pt1[1]+args['windowsize'], 2*args['windowsize']+1)  , axis=0)
+        pt1_Z = np.expand_dims(np.linspace(pt1[2]-args['windowsize'], pt1[2]+args['windowsize'], 2*args['windowsize']+1)  , axis=0)
+        pt1_win = np.vstack ([pt1_X, pt1_Y, pt1_Z])
+        homogenous_pts = np.matrix(np.vstack([pt1_win, np.ones(pt1_X.shape[1])]))
+        pt2_win = (np.linalg.inv(transform)*homogenous_pts)[:3,:]
+        Patch1,Patch2 = get_patches(I1,I2, pt1_win,pt2_win,X,Y,Z, args['datatype'])
 
-    return met
+    if Patch1 is not None:
+        met = compute_metric_for_patch(Patch1,Patch2,args['metric'])
+        return met
+    else:
+        return None
 
 def compute_metric_for_patch(f1,f2,metrictype):
     """

@@ -22,5 +22,5 @@ def create_sample_data():
     points = (x, y, z)
     I = value_func_3d(*np.meshgrid(*points, indexing='ij'))
     transform = np.matrix([[1,0,0,3],[0,1,0,3],[0,0,1,3],[0,0,0,1]])
-    transform = np.matrix([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
+    #transform = np.matrix([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
     return I,I, transform
