@@ -60,7 +60,7 @@ class EvalStitching (ArgSchemaParser):
         #Sample points in overlapping bounds
         pts = utils.sample_points_in_overlap(bounds1, bounds2,self.args['samplinginfo'])
         pruned_pts = utils.prune_points_to_fit_window(pts, self.args['windowsize'], I1.shape)
-        print(pruned_pts)
+        
         #calculate metrics
         M = []
         for pt in pruned_pts:
