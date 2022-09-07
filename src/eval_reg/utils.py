@@ -34,10 +34,10 @@ def calculate_bounds(image1_shape, image2_shape, transform):
     where image1 is in its own coordinate system and image 2 is mapped
     to image 1's coords with the transform
     """
-        b1 = [[0,0,0],list(image1_shape)]
-        pt_min = np.matrix([0,0,0,1]).transpose()
-        pt_max = np.matrix(list(image2_shape)+[1]).transpose()
-        b2 = [np.squeeze(transform*pt_min).tolist()[0][:3],
-               np.squeeze(transform*pt_max).tolist()[0][:3]]  
-             
-        return b1,b2 
+    b1 = [[0,0,0],list(image1_shape)]
+    pt_min = np.matrix([0,0,0,1]).transpose()
+    pt_max = np.matrix(list(image2_shape)+[1]).transpose()
+    b2 = [np.squeeze(transform*pt_min).tolist()[0][:3],
+            np.squeeze(transform*pt_max).tolist()[0][:3]]  
+            
+    return b1,b2 

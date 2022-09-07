@@ -16,7 +16,7 @@ example_input = {
     "datatype": "dummy",
     "metric": "SSD",
     "windowsize": 0,
-    "samplinginfo": { "type": "random", "numpoints": 10}
+    "samplinginfo": { "type": "random", "numpoints": 1000}
 }
 
 class SamplingArgsSchema(ArgSchema):

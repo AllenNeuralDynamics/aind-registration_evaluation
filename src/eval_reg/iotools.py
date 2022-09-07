@@ -16,10 +16,11 @@ def create_sample_data():
     def value_func_3d(x, y, z):
         return 1 * x + 1 * y - z
 
-    x = np.linspace(0, 9, 10)
-    y = np.linspace(0, 9, 10)
-    z = np.linspace(0, 9, 10)
+    x = np.linspace(0, 199, 200)
+    y = np.linspace(0, 199, 200)
+    z = np.linspace(0, 199, 200)
     points = (x, y, z)
     I = value_func_3d(*np.meshgrid(*points, indexing='ij'))
     transform = np.matrix([[1,0,0,3],[0,1,0,3],[0,0,1,3],[0,0,0,1]])
+    transform = np.matrix([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
     return I,I, transform
