@@ -16,6 +16,15 @@ To develop the code, run
 pip install -e .[dev]
 ```
 
+## To Run
+Run with the following:
+
+```
+python src/eval_reg/evaluate_stitching.py
+```
+
+The example_input dict at the top of the file gives an example of the inputs. If "datatype" is set to dummy, then it will create dummy data and run it on that. If it's set to "large" then it will try to read the zarr files. The code for manipulating the zarr files is still not working.
+
 ## Contributing
 
 ### Linters and testing
