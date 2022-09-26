@@ -10,8 +10,8 @@ import iotools
 import utils
 
 example_input = {
-    "image1": "gs://aind-msma-data/SmartSPIM_617052_2022_07_19_19-22-33_stitched_multichannel/stitched_2/OMEZarr/zarr_multiscale.zarr/4/",
-    "image2": "gs://aind-msma-data/SmartSPIM_617052_2022_07_19_19-22-33_stitched_multichannel/stitched_2/OMEZarr/zarr_multiscale.zarr/4/",
+    "image1": "gs://aind-msma-data/SmartSPIM_617052_2022_07_19_19-22-33/OME_Zarr_tiles/Ex_488_Em_525_468770_468770_830620_012820.zarr"
+    "image2": "gs://aind-msma-data/SmartSPIM_617052_2022_07_19_19-22-33/OME_Zarr_tiles/Ex_488_Em_525_468770_468770_856540_012820.zarr"
     "transform": "transform.json",
     "channel": 1,
     "datatype": "dummy",
