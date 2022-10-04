@@ -1,57 +1,88 @@
 import this
 import numpy as np
 import dask.array as da
+from io_utils import ImageReader
+from typing import Tuple
 
 def sample_points_in_overlap(bounds1, bounds2, args ):
-        """samples points in the overlap regions 
-           and returns a list of points
-           sampling types : random, grid, feature extracted
-        """
-        
-        #check if there is intersection
-        #######NEED TO DO!!!!
-
-        #if there is, then : 
-        if args['type'] == "random":
-            o_min = [np.max([bounds1[0][0], bounds2[0][0]]),
-                        np.max([bounds1[0][1], bounds2[0][1]]),
-                            np.max([bounds1[0][2], bounds2[0][2]])]
-
-            o_max = [np.min([bounds1[1][0], bounds2[1][0]]),
-                        np.min([bounds1[1][1], bounds2[1][1]]),
-                            np.min([bounds1[1][2], bounds2[1][2]])]
-
-            print(range(o_min[0], o_max[0]))
-            x = list(np.random.choice( range(o_min[0], o_max[0]), args['numpoints'] ))
-            y = list(np.random.choice(range(o_min[1], o_max[1]), args['numpoints']))
-            z = list(np.random.choice(range(o_min[2], o_max[2]), args['numpoints']))
-        
-        return list(np.array([x,y,z]).transpose())
-
+    """samples points in the overlap regions 
+        and returns a list of points
+        sampling types : random, grid, feature extracted
+    """
     
+    #check if there is intersection
+    #######NEED TO DO!!!!
 
-def calculate_bounds(data, args):
+    #if there is, then : 
+    if args['type'] == "random":
+        o_min = [np.max([bounds1[0][0], bounds2[0][0]]),
+                    np.max([bounds1[0][1], bounds2[0][1]]),
+                        np.max([bounds1[0][2], bounds2[0][2]])]
+
+        o_max = [np.min([bounds1[1][0], bounds2[1][0]]),
+                    np.min([bounds1[1][1], bounds2[1][1]]),
+                        np.min([bounds1[1][2], bounds2[1][2]])]
+
+        print(range(o_min[0], o_max[0]))
+        x = list(np.random.choice( range(o_min[0], o_max[0]), args['numpoints'] ))
+        y = list(np.random.choice(range(o_min[1], o_max[1]), args['numpoints']))
+        z = list(np.random.choice(range(o_min[2], o_max[2]), args['numpoints']))
+    
+    return list(np.array([x,y,z]).transpose())
+
+def calculate_bounds(
+    image_1:ImageReader, 
+    image_2:ImageReader,
+    transform:np.ndarray
+) -> Tuple:
     """
     Calculate bounds of coverage for two images and a transform
     where image1 is in its own coordinate system and image 2 is mapped
     to image 1's coords with the transform
     """
 
-    image1_shape, image2_shape = get_image_shapes(data, args)
-    transform = data[2]
-    b1 = [[0,0,0],list(image1_shape)]
-    pt_min = np.matrix([0,0,0,1]).transpose()
-    pt_max = np.matrix(list(image2_shape)+[1]).transpose()
-    b2 = [np.squeeze(transform*pt_min).tolist()[0][:3],
-            np.squeeze(transform*pt_max).tolist()[0][:3]]  
-            
-    return b1,b2 
+    image_1_shape = image_1.shape
+    image_2_shape = image_2.shape
+
+    dimensions_zeros = np.zeros(len(image_1_shape), dtype=np.int8)
+    
+    # First boundary
+    bound_1 = np.array(
+        [
+            dimensions_zeros,
+            list(image_1_shape)
+        ]
+    )
+    
+    # Minimum point
+    pt_min = np.matrix(
+        np.append(dimensions_zeros, 1)
+    ).transpose()
+    
+    # Maximum point
+    pt_max = np.matrix(
+        np.array( list(image_2_shape) +[1] )
+    ).transpose()
+    
+    # Getting coordinates for second image into image_1 coordinate system
+    coord_1 = np.squeeze(
+        transform*pt_min,
+    ).tolist()[0][:-1]
+    
+    coord_2 = np.squeeze(
+        transform*pt_max
+    ).tolist()[0][:-1]
+        
+    bound_2 = np.array([coord_1, coord_2])
+
+    return bound_1, bound_2
 
 def prune_points_to_fit_window(pts, window_size, data, args):
 
     image_shape, image2_shape = get_image_shapes(data, args)
 
     newpts = []
+    print("PTS: ", pts)
     
     for p in pts:
         if (p[0]+window_size > image_shape[0]) | (p[1]+window_size > image_shape[1]) |(p[2]+window_size > image_shape[2]) :
@@ -62,7 +93,7 @@ def prune_points_to_fit_window(pts, window_size, data, args):
     return newpts
 
 def get_image_shapes(data, args):
-    if args['datatype'] == 'large':
+    if args['data_type'] == 'large':
         return np.squeeze(data[0][:,args['channel'], :,:,:]).shape, np.squeeze(data[1][:,args['channel'], :,:,:]).shape
 
     else:
