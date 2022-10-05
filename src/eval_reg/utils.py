@@ -2,43 +2,105 @@ import this
 import numpy as np
 import dask.array as da
 from io_utils import ImageReader
-from typing import Tuple
+from typing import Tuple, List, Optional
 
-def sample_points_in_overlap(bounds1, bounds2, args ):
-    """samples points in the overlap regions 
-        and returns a list of points
-        sampling types : random, grid, feature extracted
+def sample_points_in_overlap(
+    bounds_1:np.ndarray, 
+    bounds_2:np.ndarray,
+    numpoints:int,
+    sample_type:Optional[str]='random'
+) -> np.ndarray:
     """
+    samples points in the overlap regions and returns a list of points
+    
+    sampling types : random, grid, feature extracted
+    
+    Parameters
+    ------------------------
+    
+    bounds_1: np.ndarray
+        Image 1 calculated boundaries in each dimension, each position could be (x, y) or (x, y, z)
+        depending on the image dimensionality.
+        
+    bounds_2: np.ndarray
+        Image 2 calculated boundaries in each dimension, each position could be (x, y) or (x, y, z)
+        depending on the image dimensionality.
+    
+    numpoints: int
+        Number of sample points that will be used to create the grid
+    
+    sample_type: str
+        random, grid or feature_extracted.
+    
+    Returns
+    ------------------------
+    np.ndarray:
+        Array with the overlaped sample points.
+    """
+    sample_type = sample_type.lower()
+    numpoints = int(numpoints)
+    
+    if sample_type not in ['random', 'grid', 'feature_extracted']:
+        raise NotImplementedError(f"{sample_type} sample type has not been implemented.")
+    
+    if numpoints < 0:
+        raise ValueError("Error in the number of points, it must be a positive integer.")
     
     #check if there is intersection
     #######NEED TO DO!!!!
 
     #if there is, then : 
-    if args['type'] == "random":
-        o_min = [np.max([bounds1[0][0], bounds2[0][0]]),
-                    np.max([bounds1[0][1], bounds2[0][1]]),
-                        np.max([bounds1[0][2], bounds2[0][2]])]
-
-        o_max = [np.min([bounds1[1][0], bounds2[1][0]]),
-                    np.min([bounds1[1][1], bounds2[1][1]]),
-                        np.min([bounds1[1][2], bounds2[1][2]])]
-
-        print(range(o_min[0], o_max[0]))
-        x = list(np.random.choice( range(o_min[0], o_max[0]), args['numpoints'] ))
-        y = list(np.random.choice(range(o_min[1], o_max[1]), args['numpoints']))
-        z = list(np.random.choice(range(o_min[2], o_max[2]), args['numpoints']))
     
-    return list(np.array([x,y,z]).transpose())
+    n_dims = len(bounds_1[0])
+    dims_sample_points = []
+    
+    if sample_type == "random":
+        
+        for dim_idx in range(n_dims):
+            
+            o_min = max(
+                bounds_1[0][dim_idx], bounds_2[0][dim_idx]
+            )
+            
+            o_max = min(
+                bounds_1[1][dim_idx], bounds_2[1][dim_idx]
+            )
+
+            dims_sample_points.append(
+                np.random.choice( range(o_min, o_max), numpoints )
+            )
+            
+    dims_sample_points = np.array(dims_sample_points).transpose()
+    return dims_sample_points
 
 def calculate_bounds(
     image_1:ImageReader, 
     image_2:ImageReader,
     transform:np.ndarray
 ) -> Tuple:
+    
     """
     Calculate bounds of coverage for two images and a transform
     where image1 is in its own coordinate system and image 2 is mapped
     to image 1's coords with the transform
+    
+    Parameters
+    ------------------------
+    image_1: ImageReader
+        First image which will be used as default in the coordinate system
+    
+    image_2: ImageReader
+        Second image which will be used to map it's position to a common coordinate system
+        based on image_1
+        
+    transform: np.ndarray
+        Transformation matrix applied over the two images
+    
+    Returns
+    ------------------------
+    Tuple:
+        Tuple with the calculated boundaries.
+    
     """
 
     image_1_shape = image_1.shape
@@ -76,29 +138,67 @@ def calculate_bounds(
     bound_2 = np.array([coord_1, coord_2])
 
     return bound_1, bound_2
-
-def prune_points_to_fit_window(pts, window_size, data, args):
-
-    image_shape, image2_shape = get_image_shapes(data, args)
-
-    newpts = []
-    print("PTS: ", pts)
     
-    for p in pts:
-        if (p[0]+window_size > image_shape[0]) | (p[1]+window_size > image_shape[1]) |(p[2]+window_size > image_shape[2]) :
-            print("skip point")
-        else:
-            newpts.append(p)
-
-    return newpts
-
-def get_image_shapes(data, args):
-    if args['data_type'] == 'large':
-        return np.squeeze(data[0][:,args['channel'], :,:,:]).shape, np.squeeze(data[1][:,args['channel'], :,:,:]).shape
-
-    else:
-        return data[0].shape, data[1].shape
-
+def prune_points_to_fit_window(
+    image_shape:Tuple,
+    points:np.array,
+    window_size:int
+) -> np.array:
+    """
+    Checks if generated points can be used for metric evaluation in the specified window size
+    given a set of points and an image shape.
+    
+    Parameters
+    ------------------------
+    image_shape: Tuple
+        Image shape
+    
+    points: np.array
+        Sample points in an overlap region given two images using a transformation matrix
+        
+    window_size: int
+        Window size applied over each axis
+    
+    Returns
+    ------------------------
+    np.array:
+        Array with the points that fit the window size inside image shape.
+    
+    """
+    
+    def check_window_size(nested_point:np.array)-> bool:
+        """
+        Map function applied over a numpy array
+        
+        Parameters
+        ------------------------
+        nested_point: np.array
+            Individual point from the points array.
+        
+        Returns
+        ------------------------
+        bool:
+            True if the (point (x, y) + window size) is inside image shape,
+            False otherwise.
+        """
+        modified_point = nested_point + window_size
+        point_window_inside = np.less(modified_point, image_shape)
+        unique_val = np.unique(point_window_inside)
+        
+        if len(unique_val) == 1 and unique_val[0] == True:
+            return True
+        
+        return False
+    
+    selected_indices = np.array(
+        list(
+            map(
+                check_window_size, points
+            )
+        )
+    )
+    
+    return points[selected_indices]
 
 def affine_transform_dask(
         input,

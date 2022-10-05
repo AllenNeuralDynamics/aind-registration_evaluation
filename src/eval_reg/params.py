@@ -1,7 +1,33 @@
 from argschema import ArgSchema
 from argschema.fields import Int, Str, Nested, InputFile, InputDir
 from argschema.schemas import DefaultSchema
-from marshmallow import validate
+from marshmallow import validate, fields
+import os
+import sys
+
+class InputImage(fields.Str):
+    """
+    InputImage is :class:`marshmallow.fields.Str` subclass which is a path to a
+    a file location that exists and that the user can access
+    (presently checked with os.access)
+    """
+    def _validate(self, value):
+        
+        # If it is a folder (e.g., .zarr) or a file (e.g., .png)
+        check = os.path.isdir(value) or os.path.isfile(value)
+        
+        if not check:
+            raise mm.ValidationError("%s is not a directory")
+
+        if sys.platform == "win32":
+            try:
+                x = list(os.scandir(value))
+            except PermissionError:
+                raise mm.ValidationError("%s is not a readable directory" % value)
+        else:
+            if not os.access(value, os.R_OK):
+                raise mm.ValidationError("%s is not a readable directory" % value)
+        
 
 class SamplingArgsSchema(DefaultSchema):
     """
@@ -28,14 +54,14 @@ class EvalRegSchema(ArgSchema):
     """
     Schema format for Evaluate Stitching.
     """
-    image_1 = InputDir(
+    image_1 = InputImage(
         required=True, 
         metadata={
             'description':'Path to the file where the data is located'
         }
     )
     
-    image_2 = InputDir(
+    image_2 = InputImage(
         required=True, 
         metadata={
             'description':'Path to the file where the data is located'

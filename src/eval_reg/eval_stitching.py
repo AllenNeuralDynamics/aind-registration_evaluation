@@ -14,7 +14,7 @@ import os
 
 # IO types 
 PathLike = Union[str, Path]
-
+    
 class EvalStitching(ArgSchemaParser):
     """
     Class to Evaluate Stitching.
@@ -26,7 +26,7 @@ class EvalStitching(ArgSchemaParser):
         Args:
             Evaluate block
         """
-
+        
         #read data/pointers and linear transform 
         image_1, image_2, transform = io_utils.get_data(
             path_image_1=self.args['image_1'], 
@@ -41,10 +41,21 @@ class EvalStitching(ArgSchemaParser):
         print("BOUNDS1: ", bounds_1, "BOUNDS2: ", bounds_2)
 
         # #Sample points in overlapping bounds
-        # pts = utils.sample_points_in_overlap(bounds1, bounds2,self.args['samplinginfo'])
-        # pruned_pts = utils.prune_points_to_fit_window(pts, self.args['windowsize'], data, self.args)
-        # print(len(pruned_pts))
+        points = utils.sample_points_in_overlap(
+            bounds_1=bounds_1, 
+            bounds_2=bounds_2, 
+            numpoints=self.args['sampling_info']['numpoints'],
+            sample_type=self.args['sampling_info']['sampling_type']
+        )
+        
+        pruned_points = utils.prune_points_to_fit_window(
+            image_1.shape, 
+            points,
+            self.args['window_size']
+        )
 
+        print("Number of discarded points: ", points.shape[0] - pruned_points.shape[0])
+        
         # #calculate metrics
         # M = []
         # for pt in pruned_pts:
@@ -88,8 +99,8 @@ def main():
     # Get same configuration from yaml file to apply it over a dataset
     default_config = get_default_config()
     
-    default_config['image_1'] = 'C:/Users/camilo.laiton/Documents/registration_evaluation/src/eval_reg/images/Ex_488_Em_525_468770_468770_830620_012820.zarr'
-    default_config['image_2'] = 'C:/Users/camilo.laiton/Documents/registration_evaluation/src/eval_reg/images/Ex_488_Em_525_468770_468770_830620_012820.zarr'
+    default_config['image_1'] = 'C:/Users/camilo.laiton/Documents/images/Ex_488_Em_525_468770_468770_830620_012820.zarr'
+    default_config['image_2'] = 'C:/Users/camilo.laiton/Documents/images/Ex_488_Em_525_468770_468770_830620_012820.zarr'
     
     mod = EvalStitching(default_config)
     mod.run()
