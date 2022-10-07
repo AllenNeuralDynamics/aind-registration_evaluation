@@ -2,7 +2,9 @@ import this
 import numpy as np
 import dask.array as da
 from io_utils import ImageReader
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Union
+
+ArrayLike = Union[da.Array, np.array]
 
 def sample_points_in_overlap(
     bounds_1:np.ndarray, 
@@ -74,8 +76,8 @@ def sample_points_in_overlap(
     return dims_sample_points
 
 def calculate_bounds(
-    image_1:ImageReader, 
-    image_2:ImageReader,
+    image_1_shape:Tuple, 
+    image_2_shape:Tuple,
     transform:np.ndarray
 ) -> Tuple:
     
@@ -86,10 +88,10 @@ def calculate_bounds(
     
     Parameters
     ------------------------
-    image_1: ImageReader
+    image_1: Tuple
         First image which will be used as default in the coordinate system
     
-    image_2: ImageReader
+    image_2: Tuple
         Second image which will be used to map it's position to a common coordinate system
         based on image_1
         
@@ -102,9 +104,6 @@ def calculate_bounds(
         Tuple with the calculated boundaries.
     
     """
-
-    image_1_shape = image_1.shape
-    image_2_shape = image_2.shape
 
     dimensions_zeros = np.zeros(len(image_1_shape), dtype=np.int8)
     
@@ -199,6 +198,25 @@ def prune_points_to_fit_window(
     )
     
     return points[selected_indices]
+
+def extract_data(arr:ArrayLike, last_dimensions:Optional[int]=None) -> ArrayLike:
+    
+    if last_dimensions != None:
+    
+        if last_dimensions > arr.ndim:
+            raise ValueError(
+                "Last dimensions should be lower than array dimensions"
+            )
+    
+    else:
+        last_dimensions = len(arr.shape) - arr.shape.count(1)
+    
+    dynamic_indices = [slice(None)]*arr.ndim
+    
+    for idx in range(arr.ndim - last_dimensions):
+        dynamic_indices[idx] = 0
+ 
+    return arr[tuple(dynamic_indices)]
 
 def affine_transform_dask(
         input,

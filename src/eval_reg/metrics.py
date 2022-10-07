@@ -7,7 +7,8 @@ import scipy
 from dask import delayed
 import utils
 import dask.array as da
-
+from io_utils import ImageReader
+from typing import List
 
 
 def get_patch_from_dask_array(I, mins, maxs):
@@ -22,25 +23,66 @@ def get_patch_from_dask_array(I, mins, maxs):
     #print("This is patch 2: ", Patch2.shape)
     return Patch2, X-mins[0],Y-mins[1],Z-mins[2]
 
+def new_get_patches(
+    images:List[ImageReader],
+    windowed_points:np.array,
+    transform:np.matrix
+) -> np.array:
+    
+    point_1_windowed = windowed_points[0]
+    point_2_windowed = windowed_points[1]
+    
+    image_2_shape = images[1].shape
+    
+    # Range of values in interval for each axis
+    dims = tuple([
+        np.linspace(
+            0, 
+            image_2_shape[idx_dim], 
+            image_2_shape[idx_dim]
+        ) for idx_dim in range(len(image_2_shape))
+    ])
+    
+    len_dims = len(point_1_windowed)
+    
+    patch_1 = None
+    
+    if len_dims == 2:
+        patch_1 = images[0][point_1_windowed[0], point_1_windowed[1]]
+    elif len_dims == 3:
+        patch_1 = images[0][point_1_windowed[0], point_1_windowed[1], point_1_windowed[2]]
+    else:
+        raise NotImplementedError("Only 2D or 3D dimensions are accepted")
+    
+    patch_2 = scipy.interpolate.interpn(
+        dims, 
+        images[1],
+        point_2_windowed.transpose()
+    )
+    
+    return patch_1, patch_2
+
 def get_patches(data, pt1,pt2,X,Y,Z,args):
     """
     Function to return patches to be compared.
     """
     transform = data[2]
-    if args['datatype'] != "large":
+    if args['data_type'] != "large":
         I1 = data[0]
         I2 = data[1]
         
         pt1 = pt1.astype(int)
+        X = np.linspace(0, I2.shape[0], I2.shape[0])  
+        Y = np.linspace(0, I2.shape[1], I2.shape[1]) 
+        Z = np.linspace(0, I2.shape[2], I2.shape[2])
+        
         try:
-            X = np.linspace(0, I2.shape[0], I2.shape[0])  
-            Y = np.linspace(0, I2.shape[1], I2.shape[1]) 
-            Z = np.linspace(0, I2.shape[2], I2.shape[2]) 
+            # print("WINDOWED ORIG: ",pt1[0], pt1[1], pt1[2])
             Patch1 = I1[pt1[0], pt1[1], pt1[2]]
             Patch2 = scipy.interpolate.interpn((X,Y,Z), I2, pt2.transpose())
             return Patch1, Patch2
-        except:
-            return None,None 
+        except ValueError as err:
+            return None, None
     else:
             I1 = np.squeeze(data[0][:,1, :,:,:])
             I2 = np.squeeze(data[1][:,args['channel'], :,:,:])
@@ -62,15 +104,71 @@ def get_patches(data, pt1,pt2,X,Y,Z,args):
             
             Patch2 = scipy.interpolate.interpn((X,Y,Z), I2_patch, (pt2_adjusted.transpose())
             return Patch1, Patch2 """
-        
 
+def new_calculate_metrics(
+    point:np.array,
+    image_1:ImageReader,
+    image_2:ImageReader,
+    transform:np.matrix,
+    window_size:int,
+    metric:str
+) -> float:
+    
+    image_1_shape = image_1.shape
+    image_2_shape = image_2.shape
+    
+    if window_size == 0:
+        pass
+    
+    else:
+        # XY or XYZ
+        points_per_dim = [
+            np.expand_dims(
+                np.linspace(
+                    point[idx_dim] - window_size, 
+                    point[idx_dim] + window_size, 
+                    2*window_size+1
+                ),
+                axis=0
+            ) for idx_dim in range(len(image_2_shape))
+        ]
+        
+        # Flattened points for get patches and with extra dimension for meshgrid
+        # points_per_dim_flattened = tuple(
+        #     [np.squeeze(pt_flattened).flatten() for point_per_dim in points_per_dim]
+        # )
+        points_per_dim = tuple(points_per_dim)
+        
+        grid_per_dim = np.meshgrid(*points_per_dim, indexing='ij')
+        grid_per_dim = [grid_dim.flatten() for grid_dim in grid_per_dim]
+        # print(grid_per_dim[0], len(grid_per_dim), point)
+        
+        point_1_windowed = np.vstack(grid_per_dim)
+        homogenous_pts = np.matrix(
+            np.vstack(
+                [
+                    point_1_windowed,
+                    np.ones(grid_per_dim[0].shape)
+                ]
+            )
+        )
+        
+        point_2_windowed = (np.linalg.inv(transform)*homogenous_pts)[:len(image_2_shape),:]
+        
+        patch_1, patch_2 = new_get_patches(
+            [image_1, image_2], 
+            [point_1_windowed.astype(np.int32), point_2_windowed.astype(np.int32)],
+            transform
+        )
+        
+        return compute_metric_for_patch(patch_1, patch_2, metric)
 
 
 def calculate_metrics(pt1, data, args):
     """Given a pair of points, the images and the transform, 
-        Calculate metrics for window size. If windowsize = 0, calculate just for one point"""
+        Calculate metrics for window size. If window_size = 0, calculate just for one point"""
         
-    if args['datatype'] == 'large':
+    if args['data_type'] == 'large':
         I1 = np.squeeze(data[0][:,args['channel'], :,:,:])
         I2 = np.squeeze(data[1][:,args['channel'], :,:,:])
     else:
@@ -82,16 +180,16 @@ def calculate_metrics(pt1, data, args):
     Y = np.linspace(0, I2.shape[1], I2.shape[1])  
     Z = np.linspace(0, I2.shape[2], I2.shape[2])   
     
-    if args['windowsize'] == 0:
+    if args['window_size'] == 0:
         pt2 = (np.linalg.inv(transform)*np.matrix(list(pt1)+[1]).transpose())[:3]
         pt2 = np.squeeze(np.asarray(pt2))
         Patch1,Patch2 = get_patches(I1,I2, np.expand(pt1,axis=0),np.expand_dims(pt2,axis=0),X,Y,Z, args)
         
     else:
         #print("need to work on this")
-        pt1_X = np.expand_dims(np.linspace(pt1[0]-args['windowsize'], pt1[0]+args['windowsize'], 2*args['windowsize']+1)  , axis=0)
-        pt1_Y = np.expand_dims(np.linspace(pt1[1]-args['windowsize'], pt1[1]+args['windowsize'], 2*args['windowsize']+1)  , axis=0)
-        pt1_Z = np.expand_dims(np.linspace(pt1[2]-args['windowsize'], pt1[2]+args['windowsize'], 2*args['windowsize']+1)  , axis=0)
+        pt1_X = np.expand_dims(np.linspace(pt1[0]-args['window_size'], pt1[0]+args['window_size'], 2*args['window_size']+1)  , axis=0)
+        pt1_Y = np.expand_dims(np.linspace(pt1[1]-args['window_size'], pt1[1]+args['window_size'], 2*args['window_size']+1)  , axis=0)
+        pt1_Z = np.expand_dims(np.linspace(pt1[2]-args['window_size'], pt1[2]+args['window_size'], 2*args['window_size']+1)  , axis=0)
         points = (pt1_X, pt1_Y, pt1_Z)
         X,Y,Z = np.meshgrid(*points, indexing='ij')
         

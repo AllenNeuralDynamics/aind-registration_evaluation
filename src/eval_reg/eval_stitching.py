@@ -27,6 +27,9 @@ class EvalStitching(ArgSchemaParser):
             Evaluate block
         """
         
+        image_1_data = None
+        image_2_data = None
+        
         #read data/pointers and linear transform 
         image_1, image_2, transform = io_utils.get_data(
             path_image_1=self.args['image_1'], 
@@ -34,10 +37,28 @@ class EvalStitching(ArgSchemaParser):
             data_type=self.args['data_type']
         )
         
-        print("Got data: ", image_1.shape, image_2.shape, transform)
+        if self.args['data_type'] == 'large':
+            # Load dask array
+            raise NotImplementedError("Test")
+        
+        elif self.args['data_type'] == 'small':
+            image_1_data = utils.extract_data(image_1.as_numpy_array())
+            image_2_data = utils.extract_data(image_2.as_numpy_array())
+        
+        elif 'dummy' in self.args['data_type']:
+            image_1_data = image_1
+            image_2_data = image_2
+             
+        # print(type(image_1_data), image_1_data.shape)
+        
+        # exit()
+        image_1_shape = image_1_data.shape
+        image_2_shape = image_2_data.shape
+        
+        print("Got data: ", image_1_shape, image_2_shape, transform)
 
         #calculate extent of overlap using transforms in common coordinate system (assume for image 1)
-        bounds_1, bounds_2 = utils.calculate_bounds(image_1, image_2, transform)
+        bounds_1, bounds_2 = utils.calculate_bounds(image_1_shape, image_2_shape, transform)
         print("BOUNDS1: ", bounds_1, "BOUNDS2: ", bounds_2)
 
         # #Sample points in overlapping bounds
@@ -49,23 +70,38 @@ class EvalStitching(ArgSchemaParser):
         )
         
         pruned_points = utils.prune_points_to_fit_window(
-            image_1.shape, 
+            image_1_shape, 
             points,
             self.args['window_size']
         )
 
         print("Number of discarded points: ", points.shape[0] - pruned_points.shape[0])
         
-        # #calculate metrics
-        # M = []
-        # for pt in pruned_pts:
-        #     met = metrics.calculate_metrics(pt, data,self.args)
-        #     if met is not None:
-        #         M.append(met)
-            
+        #calculate metrics
+        # metric_per_point_old = []
+        metric_per_point = []
         
+        for pruned_point in pruned_points:
+            
+            met = metrics.new_calculate_metrics(
+                point=points[0],
+                image_1=image_1_data,
+                image_2=image_2_data,
+                transform=transform,
+                window_size=self.args['window_size'],
+                metric=self.args['metric']
+            )
+            # met_old = metrics.calculate_metrics(pruned_point, [image_1, image_2, transform],self.args)
+            
+            metric_per_point.append(met)
+            
+            # if met_old is not None:
+            #     metric_per_point_old.append(met_old)
+            
+        print(None in metric_per_point)
         # #compute statistics
-        # print("Mean : ", np.mean(M), " ,std: ", np.std(M), "number of points: ", len(M))
+        # print("Mean : ", np.mean(metric_per_point_old), " ,std: ", np.std(metric_per_point_old), "number of points: ", len(metric_per_point_old))
+        print("Mean : ", np.mean(metric_per_point), " ,std: ", np.std(metric_per_point), "number of points: ", len(metric_per_point))
 
 def get_default_config(filename:PathLike=None):
     """
