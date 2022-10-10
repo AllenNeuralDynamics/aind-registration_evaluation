@@ -203,8 +203,8 @@ def get_data(
         # TODO Get transformation matrix from terastitcher
         # transform = np.matrix([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
         transform = np.matrix([
-            [1,0,0],
-            [0,1,0],
+            [1,0,50],
+            [0,1,50],
             [0,0,1]
         ])
         

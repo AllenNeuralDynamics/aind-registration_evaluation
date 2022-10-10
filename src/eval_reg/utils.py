@@ -1,4 +1,4 @@
-import this
+# import this
 import numpy as np
 import dask.array as da
 from io_utils import ImageReader
@@ -200,6 +200,34 @@ def prune_points_to_fit_window(
     return points[selected_indices]
 
 def extract_data(arr:ArrayLike, last_dimensions:Optional[int]=None) -> ArrayLike:
+    """
+    Extracts n dimensional data (numpy array or dask array) given expanded dimensions.
+    e.g., (1, 1, 1, 1600, 2000) -> (1600, 2000)
+    e.g., (1, 1600, 2000) -> (1600, 2000)
+    e.g., (1, 1, 2, 1600, 2000) -> (2, 1600, 2000)
+    
+    Parameters
+    ------------------------
+    arr: ArrayLike
+        Numpy or dask array with image data. It is assumed that the last dimensions
+        of the array contain the information about the image.
+        
+    last_dimensions: Optional[int]
+        If given, it selects the number of dimensions given stating from the end
+        of the array
+        e.g., arr=(1, 1, 1600, 2000) last_dimensions=3 -> (1, 1600, 2000)
+        e.g., arr=(1, 1, 1600, 2000) last_dimensions=1 -> (2000)
+    
+    Raises
+    ------------------------
+    ValueError:
+        Whenever the last dimensions value is higher than the array dimensions.
+        
+    Returns
+    ------------------------
+    ArrayLike:
+        Reshaped array with the selected indices.
+    """
     
     if last_dimensions != None:
     
@@ -315,4 +343,3 @@ def affine_transform_dask(
                                          )
 
     return transformed
-
