@@ -150,21 +150,24 @@ class LargeImageMetrics(ImageMetrics):
             raise NotImplementedError("Only 2D or 3D dimensions are accepted")
 
         # Send patch without computing
-        try:
-            patch_2 = delayed(scipy.interpolate.interpn)(
-                dims, 
-                self.image_2,
-                point_2_windowed.transpose()
-            )
-        except ValueError:
-            return None, None
+        patch_2 = delayed(scipy.interpolate.interpn)(
+            dims, 
+            self.image_2,
+            point_2_windowed.transpose()
+        )
         
         return patch_1, patch_2
     
     def mean_squared_error(self, patch_1:da.core.Array, patch_2:da.core.Array) -> float:
         error = da.map_blocks(lambda a, b: (a - b)**2, patch_1, patch_2)
         # error.visualize()
-        return error.mean().compute()
+        value_error = None
+        try:
+            value_error = error.mean().compute()
+        except ValueError:
+            value_error = None
+            
+        return value_error 
     
 class SmallImageMetrics(ImageMetrics):
     def __init__(self, image_1:ImageReader, image_2:ImageReader, metric_type:str):

@@ -1,8 +1,8 @@
 ---
 image_channel: 0
-data_type: dummy_3D
+data_type: large
 metric: SSD
-window_size: 2
+window_size: 10
 sampling_info:
   sampling_type: random
   numpoints: 200

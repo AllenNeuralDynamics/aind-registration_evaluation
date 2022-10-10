@@ -147,7 +147,7 @@ def main():
     mod = EvalStitching(default_config)
     
     dask_start = time.time()
-    mod.run_2()
+    mod.run()
     dask_end = time.time()
     print(f"Time: {dask_end-dask_start}")
     
