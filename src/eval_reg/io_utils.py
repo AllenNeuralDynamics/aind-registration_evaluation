@@ -123,7 +123,7 @@ def create_sample_data_2D(
 def create_sample_data_3D(
     delta_x:Optional[int]=3, 
     delta_y:Optional[int]=3, 
-    delta_z:Optional[int]=3
+    delta_z:Optional[int]=3   
 ) -> List:
     """
     Function to create 3D dummy data.
@@ -203,8 +203,8 @@ def get_data(
         # TODO Get transformation matrix from terastitcher
         # transform = np.matrix([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
         transform = np.matrix([
-            [1,0,50],
-            [0,1,50],
+            [1,0,0],
+            [0,1,1800],
             [0,0,1]
         ])
         

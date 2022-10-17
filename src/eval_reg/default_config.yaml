@@ -4,5 +4,5 @@ data_type: large
 metric: SSD
 window_size: 10
 sampling_info:
-  sampling_type: random
+  sampling_type: grid
   numpoints: 200

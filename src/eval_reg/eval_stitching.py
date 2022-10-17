@@ -27,7 +27,7 @@ class EvalStitching(ArgSchemaParser):
         Args:
             Evaluate block
         """
-        
+
         image_1_data = None
         image_2_data = None
         
@@ -56,9 +56,6 @@ class EvalStitching(ArgSchemaParser):
             image_1_data = image_1
             image_2_data = image_2
              
-        # print(type(image_1_data), image_1_data.shape)
-        
-        # exit()
         image_1_shape = image_1_data.shape
         image_2_shape = image_2_data.shape
         
@@ -87,26 +84,39 @@ class EvalStitching(ArgSchemaParser):
         # calculate metrics per images
         metric_per_point = []
         
-        metric_calculator_dask = ImageMetricsFactory().create(
+        metric_calculator = ImageMetricsFactory().create(
             image_1_data, 
             image_2_data, 
             self.args['metric']
         )
-            
+        
+        print(pruned_points[0])
+        
+        selected_pruned_points = []
+        
         for pruned_point in pruned_points:
             
-            met = metric_calculator_dask.calculate_metrics(
+            met = metric_calculator.calculate_metrics(
                 point=pruned_point,
                 transform=transform,
                 window_size=self.args['window_size']
             )
             
             if met:
+                selected_pruned_points.append(pruned_point)
                 metric_per_point.append(met)
-            
+        
         # compute statistics
         print("Mean : ", np.mean(metric_per_point), " ,std: ", np.std(metric_per_point), "number of points: ", len(metric_per_point))
-
+    
+        utils.visualize_images(
+            image_1_data,
+            image_2_data,
+            [bounds_1, bounds_2],
+            pruned_points,
+            selected_pruned_points
+        )
+    
 def get_default_config(filename:PathLike=None):
     """
     Gets the default configuration for the package.
@@ -140,16 +150,16 @@ def main():
     default_config = get_default_config()
     
     default_config['image_1'] = 'C:/Users/camilo.laiton/Documents/images/Ex_488_Em_525_468770_468770_830620_012820.zarr'
-    default_config['image_2'] = 'C:/Users/camilo.laiton/Documents/images/Ex_488_Em_525_468770_468770_830620_012820.zarr'
+    default_config['image_2'] = 'C:/Users/camilo.laiton/Documents/images/Ex_488_Em_525_501170_501170_830620_012820.zarr'
     
     import time
     
     mod = EvalStitching(default_config)
     
-    dask_start = time.time()
+    time_start = time.time()
     mod.run()
-    dask_end = time.time()
-    print(f"Time: {dask_end-dask_start}")
+    time_end = time.time()
+    print(f"Time: {time_end-time_start}")
     
 
 if __name__ == '__main__':

@@ -3,9 +3,52 @@ import numpy as np
 import dask.array as da
 from io_utils import ImageReader
 from typing import Tuple, List, Optional, Union
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 ArrayLike = Union[da.Array, np.array]
 
+def get_multiplicatives_2D(num_points):
+    divs = []
+    
+    for i in range(1, num_points):
+        if (num_points % i == 0) :
+            divs.append(i)
+    
+    len_div = len(divs)
+
+    middle = len_div//2
+    return divs[middle], divs[middle+1]
+
+def check_image_intersection_2D(bounds_1:np.ndarray, bounds_2:np.ndarray) -> bool:
+    
+    # X0 == X1 or Y0 == Y1 for each image then it is no image
+    # For boundaries in each image
+    for bound in [bounds_1, bounds_2]:
+        if bound[0][0] == bound[1][0] or bound[0][1] == bound[1][1]:
+            return False
+    
+    # If images are on sides of each other in X
+    if bounds_1[0][0] > bounds_2[1][0] or bounds_2[0][0] > bounds_1[1][0]:
+        return False
+    
+    # If images are on top of each other in Y
+    if bounds_1[0][1] > bounds_2[1][1] or bounds_2[0][1] > bounds_1[1][1]:
+        return False
+    
+    return True
+
+def check_image_intersection_3D(bounds_1:np.ndarray, bounds_2:np.ndarray) -> bool:
+    # X0 == X1 or Y0 == Y1 or Z0 == Z1 for each image then it is no image
+    # For boundaries in each image
+    for bound in [bounds_1, bounds_2]:
+        if bound[0][0] == bound[1][0] or bound[0][1] == bound[1][1] or bound[0][2] == bound[1][2]:
+            return False
+    
+    # TODO check offset by combined axis
+    
+    return True
+    
 def sample_points_in_overlap(
     bounds_1:np.ndarray, 
     bounds_2:np.ndarray,
@@ -48,10 +91,11 @@ def sample_points_in_overlap(
     if numpoints < 0:
         raise ValueError("Error in the number of points, it must be a positive integer.")
     
-    #check if there is intersection
-    #######NEED TO DO!!!!
-
-    #if there is, then : 
+    if len(bounds_1) == 2 and not check_image_intersection_2D(bounds_1, bounds_2):
+        raise ValueError("2D Images do not intersect. Please, check the transformation matrix.")
+    
+    elif len(bounds_1) == 3 and not check_image_intersection_3D(bounds_1, bounds_2):
+        raise ValueError("3D Images do not intersect. Please, check the transformation matrix.")
     
     n_dims = len(bounds_1[0])
     dims_sample_points = []
@@ -67,11 +111,52 @@ def sample_points_in_overlap(
             o_max = min(
                 bounds_1[1][dim_idx], bounds_2[1][dim_idx]
             )
-
+            
             dims_sample_points.append(
                 np.random.choice( range(o_min, o_max), numpoints )
             )
             
+    elif sample_type == "grid":
+        # Only for 2D so far
+        o_min = []
+        o_max = []
+        
+        for dim_idx in range(n_dims):
+            
+            o_min.append(
+                max(
+                    bounds_1[0][dim_idx], bounds_2[0][dim_idx]
+                )
+            )
+            
+            o_max.append(
+                min(
+                    bounds_1[1][dim_idx], bounds_2[1][dim_idx]
+                )   
+            )
+        
+        y_space = abs(o_min[1]-o_min[0])
+        x_space = abs(o_max[1]-o_max[0])
+        
+        matrix_vals = get_multiplicatives_2D(numpoints)
+        x_points_distance = None
+        y_points_distance = None
+        
+        if y_space > x_space:
+            y_points_distance = matrix_vals[1]
+            x_points_distance = matrix_vals[0]
+            
+        else:
+            y_points_distance = matrix_vals[0]
+            x_points_distance = matrix_vals[1]
+        
+        dims_sample_points = [
+            array.flatten() for array in np.meshgrid(
+                np.linspace(o_min[0], o_max[0], y_points_distance, dtype=int),  # For Y
+                np.linspace(o_min[1], o_max[1], x_points_distance, dtype=int),  # For X
+                indexing='ij')
+        ]
+
     dims_sample_points = np.array(dims_sample_points).transpose()
     return dims_sample_points
 
@@ -181,7 +266,7 @@ def prune_points_to_fit_window(
             False otherwise.
         """
         modified_point = nested_point + window_size
-        point_window_inside = np.less(modified_point, image_shape)
+        point_window_inside = np.less_equal(modified_point, image_shape)
         unique_val = np.unique(point_window_inside)
         
         if len(unique_val) == 1 and unique_val[0] == True:
@@ -245,6 +330,80 @@ def extract_data(arr:ArrayLike, last_dimensions:Optional[int]=None) -> ArrayLike
         dynamic_indices[idx] = 0
  
     return arr[tuple(dynamic_indices)]
+
+def visualize_images(
+    image_1_data:ArrayLike, 
+    image_2_data:ArrayLike,
+    bounds:List[np.ndarray],
+    pruned_points:ArrayLike,
+    selected_pruned_points:ArrayLike
+) -> None:
+    
+    def adjust_axis_dims(bounds:List):
+        # TODO
+        pass
+    
+    if image_1_data.ndim != image_2_data.ndim:
+        raise ValueError("Images should have the same shape")
+    
+    if image_1_data.ndim > 3:
+        raise ValueError("Only 2D/3D images are supported")
+    
+    bounds_1 = bounds[0]
+    bounds_2 = bounds[1]
+    # from scipy.ndimage import rotate
+    
+    if image_1_data.ndim == 2:
+        # plot directly the images and grid
+        print(bounds)
+
+        
+        size_x = max(bounds_1[1][0], bounds_2[1][0])
+        size_y = max(bounds_1[1][1], bounds_2[1][1])
+        
+        adjusted_img_1 = np.ones((size_x, size_y))*255
+        adjusted_img_2 = np.ones((size_x, size_y))*255
+        
+        adjusted_img_1[:bounds_1[1][0], :bounds_1[1][1]] = image_1_data
+        adjusted_img_2[bounds_2[0][0]:, bounds_2[0][1]:] = image_2_data
+        
+        fig, ax = plt.subplots()
+        
+        y_points = [point[0] for point in pruned_points]
+        x_points = [point[1] for point in pruned_points]
+        
+        selected_y_points = [point[0] for point in selected_pruned_points]
+        selected_x_points = [point[1] for point in selected_pruned_points]
+
+        plt.scatter(x=x_points, y=y_points, c='r', s=10)
+        plt.scatter(x=selected_x_points, y=selected_y_points, c='b', s=10)
+        
+        rectangle_image_1 = Rectangle(
+            xy=(bounds_1[0][1], bounds_1[0][0]),
+            width=bounds_1[1][1],
+            height=bounds_1[1][0],
+            linewidth=1, edgecolor='#FF2D00', facecolor='none', linestyle=':'
+        )
+        
+        rectangle_image_2 = Rectangle(
+            xy=(bounds_2[0][1], bounds_2[0][0]),
+            width=bounds_2[1][1],
+            height=bounds_2[1][0],
+            linewidth=1, edgecolor='#13FF00', facecolor='none', linestyle='--'
+        )
+        
+        alpha = 0.7
+        ax.imshow(adjusted_img_1, alpha=alpha)#, cmap='bone')
+        ax.imshow(adjusted_img_2, alpha=alpha)#, cmap='bone')
+        
+        ax.add_patch(rectangle_image_1)
+        ax.add_patch(rectangle_image_2)
+        
+        plt.show()
+        
+    else:
+        # 3D image, find a way to render 3D images with 3D grid
+        pass
 
 def affine_transform_dask(
         input,

@@ -49,17 +49,21 @@ class ImageMetrics(ABC):
     def get_patches(self, windowed_points:np.array, transform:np.matrix) -> Any:
         pass
     
-    def compute_metric_for_patch(self, patch_1:ArrayLike, patch_2:ArrayLike) -> float:
+    def compute_metric_for_patch(self, point_1:ArrayLike, point_2:ArrayLike) -> float:
         met_value = None
         
         if self.__metric_type == "SSD":
-            met_value = self.mean_squared_error(patch_1, patch_2)
+            met_value = self.mean_squared_error(point_1, point_2)
         
         return met_value
     
     @abstractmethod
-    def mean_squared_error(self, patch_1:ArrayLike, patch_2:ArrayLike) -> float:
+    def mean_squared_error(self, point_1:ArrayLike, point_2:ArrayLike) -> float:
         pass
+    
+    # @abstractmethod
+    # def structural_similarity_index(self, point_1:ArrayLike, point_2:ArrayLike) -> float:
+    #     pass
     
     def calculate_metrics(
         self, 
@@ -108,15 +112,15 @@ class ImageMetrics(ABC):
             
             point_2_windowed = (np.linalg.inv(transform)*homogenous_pts)[:len(image_2_shape),:]
             
-            patch_1, patch_2 = self.get_patches(
+            point_1, point_2 = self.get_patches(
                 [point_1_windowed.astype(np.int32), point_2_windowed.astype(np.int32)],
                 transform
             )
             
-            if type(patch_1) == type(None):
+            if type(point_1) == type(None):
                 return None
                 
-            return self.compute_metric_for_patch(patch_1, patch_2)
+            return self.compute_metric_for_patch(point_1, point_2)
 
 # We're working with dask for large images
 class LargeImageMetrics(ImageMetrics):
@@ -131,8 +135,8 @@ class LargeImageMetrics(ImageMetrics):
         image_2_shape = self.image_2.shape
         len_dims = len(point_1_windowed)
         
-        patch_1 = None
-        patch_2 = None
+        point_1 = None
+        point_2 = None
         
         dims = tuple([
             da.from_array(np.linspace(
@@ -143,23 +147,23 @@ class LargeImageMetrics(ImageMetrics):
         ])
         
         if len_dims == 2:
-            patch_1 = self.image_1.vindex[point_1_windowed[0], point_1_windowed[1]]
+            point_1 = self.image_1.vindex[point_1_windowed[0], point_1_windowed[1]]
         elif len_dims == 3:
-            patch_1 = self.image_1.vindex[point_1_windowed[0], point_1_windowed[1], point_1_windowed[2]]
+            point_1 = self.image_1.vindex[point_1_windowed[0], point_1_windowed[1], point_1_windowed[2]]
         else:
             raise NotImplementedError("Only 2D or 3D dimensions are accepted")
 
         # Send patch without computing
-        patch_2 = delayed(scipy.interpolate.interpn)(
+        point_2 = delayed(scipy.interpolate.interpn)(
             dims, 
             self.image_2,
             point_2_windowed.transpose()
         )
         
-        return patch_1, patch_2
+        return point_1, point_2
     
-    def mean_squared_error(self, patch_1:da.core.Array, patch_2:da.core.Array) -> float:
-        error = da.map_blocks(lambda a, b: (a - b)**2, patch_1, patch_2)
+    def mean_squared_error(self, point_1:da.core.Array, point_2:da.core.Array) -> float:
+        error = da.map_blocks(lambda a, b: (a - b)**2, point_1, point_2)
         # error.visualize()
         value_error = None
         try:
@@ -167,7 +171,7 @@ class LargeImageMetrics(ImageMetrics):
         except ValueError:
             value_error = None
             
-        return value_error 
+        return value_error
     
 class SmallImageMetrics(ImageMetrics):
     def __init__(self, image_1:ImageReader, image_2:ImageReader, metric_type:str):
@@ -181,8 +185,8 @@ class SmallImageMetrics(ImageMetrics):
         image_2_shape = self.image_2.shape
         len_dims = len(point_1_windowed)
         
-        patch_1 = None
-        patch_2 = None
+        point_1 = None
+        point_2 = None
         
         # Range of values in interval for each axis
         dims = tuple([
@@ -194,14 +198,14 @@ class SmallImageMetrics(ImageMetrics):
         ])
         
         if len_dims == 2:
-            patch_1 = self.image_1[point_1_windowed[0], point_1_windowed[1]]
+            point_1 = self.image_1[point_1_windowed[0], point_1_windowed[1]]
         elif len_dims == 3:
-            patch_1 = self.image_1[point_1_windowed[0], point_1_windowed[1], point_1_windowed[2]]
+            point_1 = self.image_1[point_1_windowed[0], point_1_windowed[1], point_1_windowed[2]]
         else:
             raise NotImplementedError("Only 2D or 3D dimensions are accepted")
 
         try:
-            patch_2 = scipy.interpolate.interpn(
+            point_2 = scipy.interpolate.interpn(
                 dims, 
                 self.image_2,
                 point_2_windowed.transpose()
@@ -209,10 +213,10 @@ class SmallImageMetrics(ImageMetrics):
         except ValueError:
             return None, None
         
-        return patch_1, patch_2
+        return point_1, point_2
     
-    def mean_squared_error(self, patch_1:np.ndarray, patch_2:np.ndarray) -> float:
-        return metrics.mean_squared_error(patch_1, patch_2)
+    def mean_squared_error(self, point_1:np.ndarray, point_2:np.ndarray) -> float:
+        return metrics.mean_squared_error(point_1, point_2)
 
 class ImageMetricsFactory:
     def __init__(self):
