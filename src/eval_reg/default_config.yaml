@@ -1,8 +1,8 @@
 ---
 image_channel: 0
 data_type: large
-metric: SSD
-window_size: 10
+metric: SSIM #SSD
+window_size: 5
 sampling_info:
   sampling_type: grid
   numpoints: 200

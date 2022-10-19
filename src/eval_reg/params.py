@@ -2,6 +2,7 @@ from argschema import ArgSchema
 from argschema.fields import Int, Str, Nested, InputFile, InputDir
 from argschema.schemas import DefaultSchema
 from marshmallow import validate, fields
+import marshmallow as mm
 import os
 import sys
 

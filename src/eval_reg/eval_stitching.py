@@ -107,7 +107,7 @@ class EvalStitching(ArgSchemaParser):
                 metric_per_point.append(met)
         
         # compute statistics
-        print("Mean : ", np.mean(metric_per_point), " ,std: ", np.std(metric_per_point), "number of points: ", len(metric_per_point))
+        print("Computed metric: ", self.args['metric'],  " Mean : ", np.mean(metric_per_point), " ,std: ", np.std(metric_per_point), "number of points: ", len(metric_per_point))
     
         utils.visualize_images(
             image_1_data,
@@ -149,8 +149,10 @@ def main():
     # Get same configuration from yaml file to apply it over a dataset
     default_config = get_default_config()
     
-    default_config['image_1'] = 'C:/Users/camilo.laiton/Documents/images/Ex_488_Em_525_468770_468770_830620_012820.zarr'
-    default_config['image_2'] = 'C:/Users/camilo.laiton/Documents/images/Ex_488_Em_525_501170_501170_830620_012820.zarr'
+    BASE_PATH = '/Users/camilo.laiton/Documents/images/'
+
+    default_config['image_1'] = BASE_PATH + 'Ex_488_Em_525_468770_468770_830620_012820.zarr'
+    default_config['image_2'] = BASE_PATH + 'Ex_488_Em_525_501170_501170_830620_012820.zarr'
     
     import time
     
