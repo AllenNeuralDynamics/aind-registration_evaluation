@@ -2,31 +2,38 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import dask.array as da
 import numpy as np
 import scipy
+import sklearn.metrics as sk_metrics
 from dask import delayed
 from io_utils import ImageReader
 from skimage import metrics
-import sklearn.metrics as sk_metrics
 
 ArrayLike = Union[da.core.Array, np.ndarray]
 
 
 class ImageMetrics(ABC):
     def __init__(
-        self, image_1: ImageReader, image_2: ImageReader, metric_type: str
+        self,
+        image_1: ImageReader,
+        image_2: ImageReader,
+        metric_type: str,
+        compute: Optional[bool] = True,
     ):
         self.__image_1 = image_1
         self.__image_2 = image_2
         self.__metric_type = metric_type
+        self.__compute = compute
         self.__metrics_acronyms = {
             "SSD": self.mean_squared_error,
             "SSIM": self.structural_similarity_index,
             "MAE": self.mean_absolute_error,
             "R2": self.r2_score,
+            "MAX_ERR": self.max_error,
+            "NCC": self.normalized_cross_correlation,
         }
 
         assert (
@@ -56,6 +63,14 @@ class ImageMetrics(ABC):
     @metric_type.setter
     def metric_type(self, new_metric_type: str) -> None:
         self.__metric_type = new_metric_type
+
+    @property
+    def compute(self) -> str:
+        return self.__compute
+
+    @compute.setter
+    def compute(self, new_compute_value: bool) -> None:
+        self.__compute = new_compute_value
 
     @abstractmethod
     def get_patches(
@@ -89,12 +104,22 @@ class ImageMetrics(ABC):
 
     @abstractmethod
     def structural_similarity_index(
-        self, image_1: ArrayLike, image_2: ArrayLike
+        self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         pass
 
     @abstractmethod
-    def r2_score(self, image_1: ArrayLike, image_2: ArrayLike) -> float:
+    def r2_score(self, patch_1: ArrayLike, patch_2: ArrayLike) -> float:
+        pass
+
+    @abstractmethod
+    def max_error(self, patch_1: ArrayLike, patch_2: ArrayLike) -> float:
+        pass
+
+    @abstractmethod
+    def normalized_cross_correlation(
+        self, patch_1: ArrayLike, patch_2: ArrayLike
+    ) -> float:
         pass
 
     def calculate_metrics(
@@ -207,7 +232,11 @@ class LargeImageMetrics(ImageMetrics):
         # error.visualize()
         value_error = None
         try:
-            value_error = error.mean().compute()
+            value_error = error.mean()
+
+            if self.compute:
+                value_error = value_error.compute()
+
         except ValueError:
             value_error = None
 
@@ -220,7 +249,11 @@ class LargeImageMetrics(ImageMetrics):
         # error.visualize()
         value_error = None
         try:
-            value_error = error.mean().compute()
+            value_error = error.mean()
+
+            if self.compute:
+                value_error = value_error.compute()
+
         except ValueError:
             value_error = None
 
@@ -233,10 +266,15 @@ class LargeImageMetrics(ImageMetrics):
         value_error = None
 
         try:
-            patch_1 = patch_1.compute()
-            patch_2 = patch_2.compute()
+            patch_2 = da.from_delayed(
+                patch_2, shape=patch_1.shape, dtype=patch_1.dtype
+            )
+            value_error = delayed(
+                metrics.structural_similarity(patch_1, patch_2)
+            )
 
-            value_error = metrics.structural_similarity(patch_1, patch_2)
+            if self.compute:
+                value_error = value_error.compute()
 
         except ValueError:
             value_error = None
@@ -280,7 +318,74 @@ class LargeImageMetrics(ImageMetrics):
             if nonzero_numerator & ~nonzero_denominator:
                 value_error = 0.0
 
-            value_error = value_error.compute()
+            value_error = value_error
+
+            if self.compute:
+                value_error = value_error.compute()
+
+        except ValueError:
+            value_error = None
+
+        return value_error
+
+    def max_error(self, patch_1: ArrayLike, patch_2: ArrayLike) -> float:
+        value_error = None
+
+        try:
+            value_error = da.map_blocks(
+                lambda a, b: abs(a - b), patch_1, patch_2
+            )
+
+            value_error = da.max(value_error)
+
+            if self.compute:
+                value_error = value_error.compute()
+
+        except ValueError:
+            value_error = None
+
+        return value_error
+
+    def normalized_cross_correlation(
+        self, patch_1: ArrayLike, patch_2: ArrayLike
+    ) -> float:
+        "See detailed description in https://itk.org/Doxygen/html/classitk_1_1CorrelationImageToImageMetricv4.html"
+        value_error = None
+
+        try:
+            patch_2 = da.from_delayed(
+                patch_2, shape=patch_1.shape, dtype=patch_1.dtype
+            )
+            if patch_1.ndim != 1:
+                patch_1 = patch_1.flatten()
+
+            if patch_2.ndim != 1:
+                patch_2 = patch_2.flatten()
+
+            mean_patch_1 = da.mean(patch_1)
+            mean_patch_2 = da.mean(patch_2)
+
+            # Centering values after calculating mean
+            centered_patch_1 = da.map_blocks(
+                lambda a: a - mean_patch_1, patch_1
+            )
+            centered_patch_2 = da.map_blocks(
+                lambda a: a - mean_patch_2, patch_2
+            )
+
+            numerator = da.dot(centered_patch_1, centered_patch_2) ** 2
+
+            # Calculating 2-norm over centered patches - None means 2-norm
+            norm_patch_1 = da.linalg.norm(centered_patch_1, ord=None) ** 2
+            norm_patch_2 = da.linalg.norm(centered_patch_2, ord=None) ** 2
+
+            # Multiplicating norms
+            denominator = norm_patch_1 * norm_patch_2
+
+            value_error = -(numerator / denominator)
+
+            if self.compute:
+                value_error = value_error.compute()
 
         except ValueError:
             value_error = None
@@ -352,6 +457,73 @@ class SmallImageMetrics(ImageMetrics):
         self, patch_1: da.core.Array, patch_2: da.core.Array
     ) -> float:
         return sk_metrics.r2_score(patch_1, patch_2)
+
+    def max_error(self, patch_1: ArrayLike, patch_2: ArrayLike) -> float:
+        return sk_metrics.max_error(patch_1, patch_2)
+
+    def normalized_cross_correlation_traditional(
+        self, patch_1: ArrayLike, patch_2: ArrayLike
+    ) -> float:
+
+        if patch_1.ndim != 1:
+            patch_1 = patch_1.flatten()
+
+        if patch_2.ndim != 1:
+            patch_2 = patch_2.flatten()
+
+        if patch_1.shape != patch_2.shape:
+            raise ValueError("Images must have the same shape")
+
+        # Centering values after calculating mean
+        centered_patch_1 = patch_1 - np.mean(patch_1)
+        centered_patch_2 = patch_2 - np.mean(patch_2)
+
+        numerator = np.transpose(centered_patch_1).dot(centered_patch_2)
+
+        # denominator
+        norm_patch_1 = np.sqrt(
+            np.transpose(centered_patch_1).dot(centered_patch_1)
+        )
+        norm_patch_2 = np.sqrt(
+            np.transpose(centered_patch_2).dot(centered_patch_2)
+        )
+
+        # Multiplicating norms
+        denominator = norm_patch_1 * norm_patch_2
+
+        return numerator / denominator
+
+    def normalized_cross_correlation(
+        self, patch_1: ArrayLike, patch_2: ArrayLike
+    ) -> float:
+        "See detailed description in https://itk.org/Doxygen/html/classitk_1_1CorrelationImageToImageMetricv4.html"
+
+        if patch_1.ndim != 1:
+            patch_1 = patch_1.flatten()
+
+        if patch_2.ndim != 1:
+            patch_2 = patch_2.flatten()
+
+        if patch_1.shape != patch_2.shape:
+            raise ValueError("Images must have the same shape")
+
+        mean_patch_1 = np.mean(patch_1)
+        mean_patch_2 = np.mean(patch_2)
+
+        # Centering values after calculating mean
+        centered_patch_1 = patch_1 - mean_patch_1
+        centered_patch_2 = patch_2 - mean_patch_2
+
+        numerator = np.inner(centered_patch_1, centered_patch_2) ** 2
+
+        # Calculating 2-norm over centered patches - None means 2-norm
+        norm_patch_1 = np.linalg.norm(centered_patch_1, ord=None) ** 2
+        norm_patch_2 = np.linalg.norm(centered_patch_2, ord=None) ** 2
+
+        # Multiplicating norms
+        denominator = norm_patch_1 * norm_patch_2
+
+        return -(numerator / denominator)
 
 
 class ImageMetricsFactory:
