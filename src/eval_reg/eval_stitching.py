@@ -1,27 +1,29 @@
 """ Evaluate stitching of large scale data.
 """
-from argschema import ArgSchemaParser
-from params import EvalRegSchema
-from typing import Union
+import os
 import random
-import numpy as np
-from metrics import ImageMetricsFactory
-import metrics
+from pathlib import Path
+from typing import Union
+
 import io_utils
+import numpy as np
 import utils
 import yaml
-from pathlib import Path
-import os
+from argschema import ArgSchemaParser
+from metrics import ImageMetricsFactory
+from params import EvalRegSchema
 
-# IO types 
+# IO types
 PathLike = Union[str, Path]
-    
+
+
 class EvalStitching(ArgSchemaParser):
     """
     Class to Evaluate Stitching.
     """
+
     default_schema = EvalRegSchema
-        
+
     def run(self):
         """
         Args:
@@ -30,139 +32,157 @@ class EvalStitching(ArgSchemaParser):
 
         image_1_data = None
         image_2_data = None
-        
-        #read data/pointers and linear transform 
+
+        # read data/pointers and linear transform
         image_1, image_2, transform = io_utils.get_data(
-            path_image_1=self.args['image_1'], 
-            path_image_2=self.args['image_2'],
-            data_type=self.args['data_type']
+            path_image_1=self.args["image_1"],
+            path_image_2=self.args["image_2"],
+            data_type=self.args["data_type"],
         )
-        
-        if self.args['data_type'] == 'large':
+
+        if self.args["data_type"] == "large":
             # Load dask array
             image_1_data = utils.extract_data(image_1.as_dask_array())
             image_2_data = utils.extract_data(image_2.as_dask_array())
-            
-            chunk_sizes = {idx:'auto' for idx in range(len(image_1_data.shape))}
-            
+
+            chunk_sizes = {
+                idx: "auto" for idx in range(len(image_1_data.shape))
+            }
+
             image_1_data = image_1_data.rechunk(chunk_sizes)
             image_2_data = image_2_data.rechunk(chunk_sizes)
-        
-        elif self.args['data_type'] == 'small':
+
+        elif self.args["data_type"] == "small":
             image_1_data = utils.extract_data(image_1.as_numpy_array())
             image_2_data = utils.extract_data(image_2.as_numpy_array())
-        
-        elif 'dummy' in self.args['data_type']:
+
+        elif "dummy" in self.args["data_type"]:
             image_1_data = image_1
             image_2_data = image_2
-             
+
         image_1_shape = image_1_data.shape
         image_2_shape = image_2_data.shape
-        
+
         # print("Got data: ", image_1_shape, image_2_shape, transform)
 
-        #calculate extent of overlap using transforms in common coordinate system (assume for image 1)
-        bounds_1, bounds_2 = utils.calculate_bounds(image_1_shape, image_2_shape, transform)
+        # calculate extent of overlap using transforms in common coordinate system (assume for image 1)
+        bounds_1, bounds_2 = utils.calculate_bounds(
+            image_1_shape, image_2_shape, transform
+        )
         # print("BOUNDS1: ", bounds_1, "BOUNDS2: ", bounds_2)
 
         # #Sample points in overlapping bounds
         points = utils.sample_points_in_overlap(
-            bounds_1=bounds_1, 
-            bounds_2=bounds_2, 
-            numpoints=self.args['sampling_info']['numpoints'],
-            sample_type=self.args['sampling_info']['sampling_type']
-        )
-        
-        pruned_points = utils.prune_points_to_fit_window(
-            image_1_shape, 
-            points,
-            self.args['window_size']
+            bounds_1=bounds_1,
+            bounds_2=bounds_2,
+            numpoints=self.args["sampling_info"]["numpoints"],
+            sample_type=self.args["sampling_info"]["sampling_type"],
         )
 
-        print("Number of discarded points: ", points.shape[0] - pruned_points.shape[0])
-        
+        pruned_points = utils.prune_points_to_fit_window(
+            image_1_shape, points, self.args["window_size"]
+        )
+
+        print(
+            "Number of discarded points: ",
+            points.shape[0] - pruned_points.shape[0],
+        )
+
         # calculate metrics per images
         metric_per_point = []
-        
+
         metric_calculator = ImageMetricsFactory().create(
-            image_1_data, 
-            image_2_data, 
-            self.args['metric']
+            image_1_data, image_2_data, self.args["metric"]
         )
-        
-        print(pruned_points[0])
-        
+
         selected_pruned_points = []
-        
+
         for pruned_point in pruned_points:
-            
+
             met = metric_calculator.calculate_metrics(
                 point=pruned_point,
                 transform=transform,
-                window_size=self.args['window_size']
+                window_size=self.args["window_size"],
             )
-            
+
             if met:
                 selected_pruned_points.append(pruned_point)
                 metric_per_point.append(met)
-        
+
         # compute statistics
-        print("Computed metric: ", self.args['metric'],  " Mean : ", np.mean(metric_per_point), " ,std: ", np.std(metric_per_point), "number of points: ", len(metric_per_point))
-    
+        print(
+            "Computed metric: ",
+            self.args["metric"],
+            " Mean : ",
+            np.mean(metric_per_point),
+            " ,std: ",
+            np.std(metric_per_point),
+            "number of points: ",
+            len(metric_per_point),
+        )
+
         utils.visualize_images(
             image_1_data,
             image_2_data,
             [bounds_1, bounds_2],
             pruned_points,
-            selected_pruned_points
+            selected_pruned_points,
         )
-    
-def get_default_config(filename:PathLike=None):
+
+
+def get_default_config(filename: PathLike = None):
     """
     Gets the default configuration for the package.
-    
+
     Parameters
     ------------------------
     filename: str
         command name to check the installation. Default: 'terastitcher'
-    
+
     Returns
     ------------------------
     bool:
         True if the command was correctly executed, False otherwise.
-    
+
     """
-    
-    if filename == None:
-        filename = Path(os.path.dirname(__file__)).joinpath('default_config.yaml')
-    
+
+    if filename is None:
+        filename = Path(os.path.dirname(__file__)).joinpath(
+            "default_config.yaml"
+        )
+
     config = None
     try:
         with open(filename, "r") as stream:
             config = yaml.safe_load(stream)
     except Exception as error:
         raise error
-    
+
     return config
+
 
 def main():
     # Get same configuration from yaml file to apply it over a dataset
     default_config = get_default_config()
-    
-    BASE_PATH = '/Users/camilo.laiton/Documents/images/'
 
-    default_config['image_1'] = BASE_PATH + 'Ex_488_Em_525_468770_468770_830620_012820.zarr'
-    default_config['image_2'] = BASE_PATH + 'Ex_488_Em_525_501170_501170_830620_012820.zarr'
-    
+    BASE_PATH = "/Users/camilo.laiton/Documents/images/"
+
+    default_config["image_1"] = (
+        BASE_PATH + "Ex_488_Em_525_468770_468770_830620_012820.zarr"
+    )
+    default_config["image_2"] = (
+        BASE_PATH + "Ex_488_Em_525_501170_501170_830620_012820.zarr"
+    )
+
     import time
-    
+
     mod = EvalStitching(default_config)
-    
+
     time_start = time.time()
     mod.run()
     time_end = time.time()
     print(f"Time: {time_end-time_start}")
-    
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
