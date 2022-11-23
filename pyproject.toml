@@ -22,7 +22,8 @@ dependencies = [
     'argschema',
     'matplotlib',
     'numpy',
-    'zarr'
+    'zarr',
+    'scikit-learn'
 ]
 
 [project.optional-dependencies]

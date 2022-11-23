@@ -1,7 +1,7 @@
 ---
 image_channel: 0
 data_type: large
-metric: NCC #SSD
+metric: NMI #SSD
 window_size: 5
 sampling_info:
   sampling_type: grid

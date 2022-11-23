@@ -1,7 +1,6 @@
 """ Evaluate stitching of large scale data.
 """
 import os
-import random
 from pathlib import Path
 from typing import Union
 
@@ -63,7 +62,7 @@ class EvalStitching(ArgSchemaParser):
         image_1_shape = image_1_data.shape
         image_2_shape = image_2_data.shape
 
-        # print("Got data: ", image_1_shape, image_2_shape, transform)
+        # print("Got data: ", image_1_shape, image_2_shape, transform, image_1_data.dtype, image_1_data.dtype)
 
         # calculate extent of overlap using transforms in common coordinate system (assume for image 1)
         bounds_1, bounds_2 = utils.calculate_bounds(
@@ -121,13 +120,13 @@ class EvalStitching(ArgSchemaParser):
             len(metric_per_point),
         )
 
-        utils.visualize_images(
-            image_1_data,
-            image_2_data,
-            [bounds_1, bounds_2],
-            pruned_points,
-            selected_pruned_points,
-        )
+        # utils.visualize_images(
+        #     image_1_data,
+        #     image_2_data,
+        #     [bounds_1, bounds_2],
+        #     pruned_points,
+        #     selected_pruned_points,
+        # )
 
 
 def get_default_config(filename: PathLike = None):

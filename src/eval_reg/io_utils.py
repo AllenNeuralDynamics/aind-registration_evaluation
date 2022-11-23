@@ -114,10 +114,10 @@ def create_sample_data_2D(
     y = np.linspace(0, 499, 500)
 
     points = (x, y)
-    I = value_func_3d(*np.meshgrid(*points, indexing="ij"))
+    image = value_func_3d(*np.meshgrid(*points, indexing="ij"))
     transform = np.matrix([[1, 0, delta_x], [0, 1, delta_y], [0, 0, 1]])
 
-    return [I, I, transform]
+    return [image, image, transform]
 
 
 def create_sample_data_3D(
@@ -154,7 +154,7 @@ def create_sample_data_3D(
     y = np.linspace(0, 499, 500)
     z = np.linspace(0, 199, 200)
     points = (x, y, z)
-    I = value_func_3d(*np.meshgrid(*points, indexing="ij"))
+    image = value_func_3d(*np.meshgrid(*points, indexing="ij"))
     transform = np.matrix(
         [
             [1, 0, 0, delta_x],
@@ -164,7 +164,7 @@ def create_sample_data_3D(
         ]
     )
 
-    return [I, I, transform]
+    return [image, image, transform]
 
 
 def get_data(

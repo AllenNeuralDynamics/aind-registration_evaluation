@@ -2,7 +2,7 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Type, Union
 
 import dask.array as da
 import numpy as np
@@ -21,12 +21,14 @@ class ImageMetrics(ABC):
         image_1: ImageReader,
         image_2: ImageReader,
         metric_type: str,
-        compute: Optional[bool] = True,
+        compute_dask: Optional[bool] = True,
+        dtype: Optional[Type] = np.float64,
     ):
         self.__image_1 = image_1
         self.__image_2 = image_2
         self.__metric_type = metric_type
-        self.__compute = compute
+        self.__compute_dask = compute_dask
+        self.__dtype = dtype
         self.__metrics_acronyms = {
             "SSD": self.mean_squared_error,
             "SSIM": self.structural_similarity_index,
@@ -34,11 +36,13 @@ class ImageMetrics(ABC):
             "R2": self.r2_score,
             "MAX_ERR": self.max_error,
             "NCC": self.normalized_cross_correlation,
+            "MI": self.mutual_information,
+            "NMI": self.normalized_mutual_information,
         }
 
         assert (
             self.__metric_type in self.__metrics_acronyms
-        ), "Metrics has not been implemented yet"
+        ), "This metric has not been implemented yet"
 
     @property
     def image_1(self) -> ImageReader:
@@ -65,12 +69,20 @@ class ImageMetrics(ABC):
         self.__metric_type = new_metric_type
 
     @property
-    def compute(self) -> str:
-        return self.__compute
+    def compute_dask(self) -> str:
+        return self.__compute_dask
 
-    @compute.setter
-    def compute(self, new_compute_value: bool) -> None:
-        self.__compute = new_compute_value
+    @compute_dask.setter
+    def compute_dask(self, new_compute_value: bool) -> None:
+        self.__compute_dask = new_compute_value
+
+    @property
+    def dtype(self) -> Type:
+        return self.__dtype
+
+    @dtype.setter
+    def compute(self, new_dtype: Type) -> None:
+        self.__dtype = new_dtype
 
     @abstractmethod
     def get_patches(
@@ -118,6 +130,12 @@ class ImageMetrics(ABC):
 
     @abstractmethod
     def normalized_cross_correlation(
+        self, patch_1: ArrayLike, patch_2: ArrayLike
+    ) -> float:
+        pass
+
+    @abstractmethod
+    def mutual_information(
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         pass
@@ -228,13 +246,15 @@ class LargeImageMetrics(ImageMetrics):
     def mean_squared_error(
         self, patch_1: da.core.Array, patch_2: da.core.Array
     ) -> float:
-        error = da.map_blocks(lambda a, b: (a - b) ** 2, patch_1, patch_2)
+        error = da.map_blocks(
+            lambda a, b: (a - b) ** 2, patch_1, patch_2, dtype=self.dtype
+        )
         # error.visualize()
         value_error = None
         try:
             value_error = error.mean()
 
-            if self.compute:
+            if self.compute_dask:
                 value_error = value_error.compute()
 
         except ValueError:
@@ -245,13 +265,15 @@ class LargeImageMetrics(ImageMetrics):
     def mean_absolute_error(
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
-        error = da.map_blocks(lambda a, b: abs(a - b), patch_1, patch_2)
+        error = da.map_blocks(
+            lambda a, b: abs(a - b), patch_1, patch_2, dtype=self.dtype
+        )
         # error.visualize()
         value_error = None
         try:
             value_error = error.mean()
 
-            if self.compute:
+            if self.compute_dask:
                 value_error = value_error.compute()
 
         except ValueError:
@@ -273,7 +295,7 @@ class LargeImageMetrics(ImageMetrics):
                 metrics.structural_similarity(patch_1, patch_2)
             )
 
-            if self.compute:
+            if self.compute_dask:
                 value_error = value_error.compute()
 
         except ValueError:
@@ -297,11 +319,16 @@ class LargeImageMetrics(ImageMetrics):
             patch_1_mean = patch_1.mean()
 
             numerator = da.map_blocks(
-                lambda a, b: weight * (a - b) ** 2, patch_1, patch_2
-            ).sum(axis=0, dtype="f8")[0]
+                lambda a, b: weight * (a - b) ** 2,
+                patch_1,
+                patch_2,
+                dtype=self.dtype,
+            ).sum(axis=0, dtype=self.dtype)[0]
             denominator = da.map_blocks(
-                lambda a: weight * (a - patch_1_mean) ** 2, patch_1
-            ).sum(axis=0, dtype="f8")[0]
+                lambda a: weight * (a - patch_1_mean) ** 2,
+                patch_1,
+                dtype=self.dtype,
+            ).sum(axis=0, dtype=self.dtype)[0]
 
             numerator = numerator.compute()
             denominator = denominator.compute()
@@ -320,7 +347,7 @@ class LargeImageMetrics(ImageMetrics):
 
             value_error = value_error
 
-            if self.compute:
+            if self.compute_dask:
                 value_error = value_error.compute()
 
         except ValueError:
@@ -333,12 +360,12 @@ class LargeImageMetrics(ImageMetrics):
 
         try:
             value_error = da.map_blocks(
-                lambda a, b: abs(a - b), patch_1, patch_2
+                lambda a, b: abs(a - b), patch_1, patch_2, dtype=self.dtype
             )
 
             value_error = da.max(value_error)
 
-            if self.compute:
+            if self.compute_dask:
                 value_error = value_error.compute()
 
         except ValueError:
@@ -362,15 +389,15 @@ class LargeImageMetrics(ImageMetrics):
             if patch_2.ndim != 1:
                 patch_2 = patch_2.flatten()
 
-            mean_patch_1 = da.mean(patch_1)
-            mean_patch_2 = da.mean(patch_2)
+            mean_patch_1 = da.mean(patch_1, dtype=self.dtype)
+            mean_patch_2 = da.mean(patch_2, dtype=self.dtype)
 
             # Centering values after calculating mean
             centered_patch_1 = da.map_blocks(
-                lambda a: a - mean_patch_1, patch_1
+                lambda a: a - mean_patch_1, patch_1, dtype=self.dtype
             )
             centered_patch_2 = da.map_blocks(
-                lambda a: a - mean_patch_2, patch_2
+                lambda a: a - mean_patch_2, patch_2, dtype=self.dtype
             )
 
             numerator = da.dot(centered_patch_1, centered_patch_2) ** 2
@@ -384,7 +411,119 @@ class LargeImageMetrics(ImageMetrics):
 
             value_error = -(numerator / denominator)
 
-            if self.compute:
+            if self.compute_dask:
+                value_error = value_error.compute()
+
+        except ValueError:
+            value_error = None
+
+        return value_error
+
+    def mutual_information(
+        self, patch_1: ArrayLike, patch_2: ArrayLike
+    ) -> float:
+        # Limitation with dask mutual information, computationally expensive
+        # since we have to go 3 times per patch of data to calculate the joint histogram
+        # One for min, one for max and one for hist
+        value_error = None
+
+        try:
+
+            patch_2 = da.from_delayed(
+                patch_2, shape=patch_1.shape, dtype=patch_1.dtype
+            )
+
+            range_bin_patch_1 = [
+                da.min(patch_1).compute(),
+                da.max(patch_1).compute(),
+            ]
+            range_bin_patch_2 = [
+                da.min(patch_2).compute(),
+                da.max(patch_2).compute(),
+            ]
+
+            range_bins = [range_bin_patch_1, range_bin_patch_2]
+
+            joint_histogram, _, _ = da.histogram2d(
+                patch_1, patch_2, bins=(10, 10), range=range_bins
+            )
+
+            pxy = joint_histogram / da.sum(joint_histogram, dtype=self.dtype)
+            py = da.sum(pxy, axis=0, dtype=self.dtype)
+            px = da.sum(pxy, axis=1, dtype=self.dtype)
+
+            px_py = px[:, None] * py[None, :]
+            non_zero_pxy_pos = pxy > 0
+
+            value_error = da.sum(
+                pxy[non_zero_pxy_pos]
+                * da.log(
+                    pxy[non_zero_pxy_pos] / px_py[non_zero_pxy_pos],
+                    dtype=self.dtype,
+                ),
+                dtype=self.dtype,
+            )
+
+            if self.compute_dask:
+                value_error = value_error.compute()
+
+        except ValueError:
+            value_error = None
+
+        return value_error
+
+    def normalized_mutual_information(
+        self, patch_1: ArrayLike, patch_2: ArrayLike
+    ) -> float:
+        # Limitation with dask mutual information, computationally expensive
+        # since we have to go 3 times per patch of data to calculate the joint histogram
+        # One for min, one for max and one for hist
+        value_error = None
+
+        try:
+            # Normalised Mutual Information of: A normalized entropy measure of 3-D medical image alignment, Studholme,  jhill & jhawkes (1998).
+            eps = np.finfo(self.dtype).eps
+
+            patch_2 = da.from_delayed(
+                patch_2, shape=patch_1.shape, dtype=patch_1.dtype
+            )
+
+            range_bin_patch_1 = [
+                da.min(patch_1).compute(),
+                da.max(patch_1).compute(),
+            ]
+            range_bin_patch_2 = [
+                da.min(patch_2).compute(),
+                da.max(patch_2).compute(),
+            ]
+
+            range_bins = [range_bin_patch_1, range_bin_patch_2]
+
+            joint_histogram, _, _ = da.histogram2d(
+                patch_1, patch_2, bins=(10, 10), range=range_bins
+            )
+            joint_histogram += eps
+
+            joint_histogram = joint_histogram / da.sum(
+                joint_histogram, dtype=self.dtype
+            )
+
+            py = da.sum(joint_histogram, axis=0, dtype=self.dtype)
+            px = da.sum(joint_histogram, axis=1, dtype=self.dtype)
+
+            numerator = da.sum(py * da.log(px), dtype=self.dtype) + da.sum(
+                px * da.log(px), dtype=self.dtype
+            )
+            denominator = (
+                da.sum(
+                    joint_histogram * da.log(joint_histogram), dtype=self.dtype
+                )
+                - 1
+            )
+
+            value_error = numerator / denominator
+
+            if self.compute_dask:
                 value_error = value_error.compute()
 
         except ValueError:
@@ -475,17 +614,19 @@ class SmallImageMetrics(ImageMetrics):
             raise ValueError("Images must have the same shape")
 
         # Centering values after calculating mean
-        centered_patch_1 = patch_1 - np.mean(patch_1)
-        centered_patch_2 = patch_2 - np.mean(patch_2)
+        centered_patch_1 = patch_1 - np.mean(patch_1, dtype=self.dtype)
+        centered_patch_2 = patch_2 - np.mean(patch_2, dtype=self.dtype)
 
         numerator = np.transpose(centered_patch_1).dot(centered_patch_2)
 
         # denominator
         norm_patch_1 = np.sqrt(
-            np.transpose(centered_patch_1).dot(centered_patch_1)
+            np.transpose(centered_patch_1).dot(centered_patch_1),
+            dtype=self.dtype,
         )
         norm_patch_2 = np.sqrt(
-            np.transpose(centered_patch_2).dot(centered_patch_2)
+            np.transpose(centered_patch_2).dot(centered_patch_2),
+            dtype=self.dtype,
         )
 
         # Multiplicating norms
@@ -507,8 +648,8 @@ class SmallImageMetrics(ImageMetrics):
         if patch_1.shape != patch_2.shape:
             raise ValueError("Images must have the same shape")
 
-        mean_patch_1 = np.mean(patch_1)
-        mean_patch_2 = np.mean(patch_2)
+        mean_patch_1 = np.mean(patch_1, dtype=self.dtype)
+        mean_patch_2 = np.mean(patch_2, dtype=self.dtype)
 
         # Centering values after calculating mean
         centered_patch_1 = patch_1 - mean_patch_1
@@ -524,6 +665,59 @@ class SmallImageMetrics(ImageMetrics):
         denominator = norm_patch_1 * norm_patch_2
 
         return -(numerator / denominator)
+
+    def mutual_information(
+        self, patch_1: ArrayLike, patch_2: ArrayLike
+    ) -> float:
+
+        # float16 by default, for a higher precision it could be increased
+        joint_histogram, _, _ = np.histogram2d(patch_1, patch_2)
+        pxy = joint_histogram / np.sum(joint_histogram, dtype=self.dtype)
+        py = np.sum(pxy, axis=0, dtype=self.dtype)
+        px = np.sum(pxy, axis=1, dtype=self.dtype)
+
+        px_py = px[:, None] * py[None, :]
+        non_zero_pxy_pos = pxy > 0
+
+        mutual_information = np.sum(
+            pxy[non_zero_pxy_pos]
+            * np.log(
+                pxy[non_zero_pxy_pos] / px_py[non_zero_pxy_pos],
+                dtype=self.dtype,
+            ),
+            dtype=self.dtype,
+        )
+
+        return mutual_information
+
+    def normalized_mutual_information(
+        self, patch_1: ArrayLike, patch_2: ArrayLike
+    ) -> float:
+
+        # Normalised Mutual Information of: A normalized entropy measure of 3-D medical image alignment, Studholme,  jhill & jhawkes (1998).
+        eps = np.finfo(self.dtype).eps
+        joint_histogram, _, _ = np.histogram2d(patch_1, patch_2)
+
+        # Compute marginal histograms
+        joint_histogram = joint_histogram + eps
+        joint_histogram = joint_histogram / np.sum(
+            joint_histogram, dtype=self.dtype
+        )
+
+        py = np.sum(joint_histogram, axis=0, dtype=self.dtype)
+        px = np.sum(joint_histogram, axis=1, dtype=self.dtype)
+
+        numerator = np.sum(py * np.log(px), dtype=self.dtype) + np.sum(
+            px * np.log(px), dtype=self.dtype
+        )
+        denominator = (
+            np.sum(joint_histogram * np.log(joint_histogram), dtype=self.dtype)
+            - 1
+        )
+
+        mutual_information = numerator / denominator
+
+        return mutual_information
 
 
 class ImageMetricsFactory:
