@@ -9,7 +9,21 @@ from matplotlib.patches import Rectangle
 ArrayLike = Union[da.Array, np.array]
 
 
-def get_multiplicatives_2D(num_points):
+def get_multiplicatives_2D(num_points: int) -> Tuple[int]:
+    """
+    Gets middle multiplicative divisors of a set of points. Helper function used to build the grid of points.
+
+    Parameters
+    ------------------------
+
+    num_points: int
+        Number of points that will be sampled in the intersection image as a grid.
+
+    Returns
+    ------------------------
+    Tuple:
+        Middle multiplicative divisors of the set of points to be displayed as a grid.
+    """
     divs = []
 
     for i in range(1, num_points):
@@ -25,6 +39,23 @@ def get_multiplicatives_2D(num_points):
 def check_image_intersection_2D(
     bounds_1: np.ndarray, bounds_2: np.ndarray
 ) -> bool:
+    """
+    Checks if the provided boundaries share an area of intersection
+
+    Parameters
+    ------------------------
+
+    bounds_1: np.ndarray
+        Array with the position of the boundaries within image 1 in order X, Y.
+
+    bounds_2: np.ndarray
+        Array with the position of the boundaries within image 2 in order X, Y.
+
+    Returns
+    ------------------------
+    Boolean:
+        True if there is an intersection, False otherwise.
+    """
 
     # X0 == X1 or Y0 == Y1 for each image then it is no image
     # For boundaries in each image
@@ -46,6 +77,23 @@ def check_image_intersection_2D(
 def check_image_intersection_3D(
     bounds_1: np.ndarray, bounds_2: np.ndarray
 ) -> bool:
+    """
+    Checks if the provided boundaries share an area of intersection
+
+    Parameters
+    ------------------------
+
+    bounds_1: np.ndarray
+        Array with the position of the boundaries within image 1 in order X, Y, Z.
+
+    bounds_2: np.ndarray
+        Array with the position of the boundaries within image 2 in order X, Y, Z.
+
+    Returns
+    ------------------------
+    Boolean:
+        True if there is an intersection, False otherwise.
+    """
     # X0 == X1 or Y0 == Y1 or Z0 == Z1 for each image then it is no image
     # For boundaries in each image
     for bound in [bounds_1, bounds_2]:
@@ -340,6 +388,30 @@ def visualize_images(
     pruned_points: ArrayLike,
     selected_pruned_points: ArrayLike,
 ) -> None:
+
+    """
+    Function that plots an image to help visualize the intersection area, sampled points and images.
+
+    Parameters
+    ------------------------
+
+    image_1_data: ArrayLike
+        Array with the data of the image 1.
+
+    image_2_data: ArrayLike
+        Array with the data of the image 1.
+
+    bounds: List[np.ndarray]
+        List with the boundaries for the intersection area of the images.
+
+    pruned_points: ArrayLike
+        Points inside the intersection area that fit based on a window size.
+
+    selected_pruned_points: ArrayLike
+        Points inside the intersection area that were used for the metric.
+
+    """
+
     def adjust_axis_dims(bounds: List):
         # TODO
         pass

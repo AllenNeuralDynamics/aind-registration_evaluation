@@ -132,13 +132,13 @@ class EvalStitching(ArgSchemaParser):
         message = f"Computed metric: {metric} \nMean: {np.mean(metric_per_point)} \nStd: {np.std(metric_per_point)}\nNumber of calculated points: {computed_points}\nDiscarded points by metric: {points.shape[0] - discarded_points_window - computed_points}"
         LOGGER.info(message)
 
-        utils.visualize_images(
-            image_1_data,
-            image_2_data,
-            [bounds_1, bounds_2],
-            pruned_points,
-            selected_pruned_points,
-        )
+        # utils.visualize_images(
+        #     image_1_data,
+        #     image_2_data,
+        #     [bounds_1, bounds_2],
+        #     pruned_points,
+        #     selected_pruned_points,
+        # )
 
 
 def get_default_config(filename: PathLike = None):
