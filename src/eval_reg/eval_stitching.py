@@ -1,5 +1,6 @@
 """ Evaluate stitching of large scale data.
 """
+import logging
 import os
 from pathlib import Path
 from typing import Union
@@ -14,6 +15,20 @@ from params import EvalRegSchema
 
 # IO types
 PathLike = Union[str, Path]
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s : %(message)s",
+    datefmt="%Y-%m-%d %H:%M",
+    handlers=[
+        logging.StreamHandler(),
+        # logging.FileHandler("test.log", "a"),
+    ],
+)
+logging.disable("DEBUG")
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
 
 
 class EvalStitching(ArgSchemaParser):
@@ -78,20 +93,24 @@ class EvalStitching(ArgSchemaParser):
             sample_type=self.args["sampling_info"]["sampling_type"],
         )
 
+        # Points that fit in window based on a window size
         pruned_points = utils.prune_points_to_fit_window(
             image_1_shape, points, self.args["window_size"]
         )
 
-        print(
-            "Number of discarded points: ",
-            points.shape[0] - pruned_points.shape[0],
+        discarded_points_window = points.shape[0] - pruned_points.shape[0]
+        LOGGER.info(
+            f"Number of discarded points when prunning points to window: {discarded_points_window}",
         )
 
         # calculate metrics per images
         metric_per_point = []
 
         metric_calculator = ImageMetricsFactory().create(
-            image_1_data, image_2_data, self.args["metric"]
+            image_1_data,
+            image_2_data,
+            self.args["metric"],
+            self.args["window_size"],
         )
 
         selected_pruned_points = []
@@ -99,9 +118,7 @@ class EvalStitching(ArgSchemaParser):
         for pruned_point in pruned_points:
 
             met = metric_calculator.calculate_metrics(
-                point=pruned_point,
-                transform=transform,
-                window_size=self.args["window_size"],
+                point=pruned_point, transform=transform
             )
 
             if met:
@@ -109,24 +126,19 @@ class EvalStitching(ArgSchemaParser):
                 metric_per_point.append(met)
 
         # compute statistics
-        print(
-            "Computed metric: ",
-            self.args["metric"],
-            " Mean : ",
-            np.mean(metric_per_point),
-            " ,std: ",
-            np.std(metric_per_point),
-            "number of points: ",
-            len(metric_per_point),
-        )
+        metric = self.args["metric"]
+        computed_points = len(metric_per_point)
 
-        # utils.visualize_images(
-        #     image_1_data,
-        #     image_2_data,
-        #     [bounds_1, bounds_2],
-        #     pruned_points,
-        #     selected_pruned_points,
-        # )
+        message = f"Computed metric: {metric} \nMean: {np.mean(metric_per_point)} \nStd: {np.std(metric_per_point)}\nNumber of calculated points: {computed_points}\nDiscarded points by metric: {points.shape[0] - discarded_points_window - computed_points}"
+        LOGGER.info(message)
+
+        utils.visualize_images(
+            image_1_data,
+            image_2_data,
+            [bounds_1, bounds_2],
+            pruned_points,
+            selected_pruned_points,
+        )
 
 
 def get_default_config(filename: PathLike = None):

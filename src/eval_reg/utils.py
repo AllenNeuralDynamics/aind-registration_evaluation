@@ -144,7 +144,6 @@ def sample_points_in_overlap(
         for dim_idx in range(n_dims):
 
             o_min.append(max(bounds_1[0][dim_idx], bounds_2[0][dim_idx]))
-
             o_max.append(min(bounds_1[1][dim_idx], bounds_2[1][dim_idx]))
 
         y_space = abs(o_min[1] - o_min[0])
