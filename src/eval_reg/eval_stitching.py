@@ -173,6 +173,7 @@ def get_default_config(filename: PathLike = None):
 
 
 def main():
+    """ """
     # Get same configuration from yaml file to apply it over a dataset
     default_config = get_default_config()
 

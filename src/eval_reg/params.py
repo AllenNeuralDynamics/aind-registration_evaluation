@@ -15,8 +15,10 @@ class InputImage(fields.Str):
     (presently checked with os.access)
     """
 
-    def _validate(self, value):
-
+    def _validate(self, value: str):
+        """
+        Method to validate if the input image actually exists
+        """
         # If it is a folder (e.g., .zarr) or a file (e.g., .png)
         check = os.path.isdir(value) or os.path.isfile(value)
 

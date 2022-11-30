@@ -11,40 +11,140 @@ PathLike = Union[str, Path]
 
 
 class ImageReader(ABC):
-    def __init__(self, data_path: PathLike):
+    def __init__(self, data_path: PathLike) -> None:
+        """
+        Class constructor of image reader.
+
+        Parameters
+        ------------------------
+        data_path: PathLike
+            Path where the image is located
+
+        """
+
         self.__data_path = Path(data_path)
         super().__init__()
 
     @abstractmethod
     def as_dask_array(self, chunk_size: Optional[Any] = None) -> da.Array:
+        """
+        Abstract method to return the image as a dask array.
+
+        Parameters
+        ------------------------
+        chunk_size: Optional[Any]
+            If provided, the image will be rechunked to the desired
+            chunksize
+
+        Returns
+        ------------------------
+        da.Array
+            Dask array with the image
+
+        """
         pass
 
     @abstractmethod
     def as_numpy_array(self) -> np.ndarray:
+        """
+        Abstract method to return the image as a numpy array.
+
+        Returns
+        ------------------------
+        np.ndarray
+            Numpy array with the image
+
+        """
         pass
 
     @abstractproperty
     def shape(self) -> Tuple:
+        """
+        Abstract method to return the shape of the image.
+
+        Returns
+        ------------------------
+        Tuple
+            Tuple with the shape of the image
+
+        """
         pass
 
     @abstractproperty
     def chunks(self) -> Tuple:
+        """
+        Abstract method to return the chunks of the image if it's possible.
+
+        Returns
+        ------------------------
+        Tuple
+            Tuple with the chunks of the image
+
+        """
         pass
 
     @property
     def data_path(self) -> PathLike:
+        """
+        Getter to return the path where the image is located.
+
+        Returns
+        ------------------------
+        PathLike
+            Path of the image
+
+        """
         return self.__data_path
 
     @data_path.setter
     def data_path(self, new_data_path: PathLike) -> None:
+        """
+        Setter of the path attribute where the image is located.
+
+        Parameters
+        ------------------------
+        new_data_path: PathLike
+            New path of the image
+
+        """
         self.__data_path = Path(new_data_path)
 
 
 class OMEZarrReader(ImageReader):
-    def __init__(self, data_path: PathLike, multiscale: Optional[int] = 0):
+    def __init__(
+        self, data_path: PathLike, multiscale: Optional[int] = 0
+    ) -> None:
+        """
+        Class constructor of image OMEZarr reader.
+
+        Parameters
+        ------------------------
+        data_path: PathLike
+            Path where the image is located
+
+        multiscale: Optional[int]
+            Desired multiscale to read from the image. Default: 0 which is
+            supposed to be the highest resolution
+
+        """
         super().__init__(Path(data_path).joinpath(str(multiscale)))
 
     def as_dask_array(self, chunk_size: Optional[Any] = None) -> da.array:
+        """
+        Method to return the image as a dask array.
+
+        Parameters
+        ------------------------
+        chunk_size: Optional[Any]
+            If provided, the image will be rechunked to the desired
+            chunksize
+
+        Returns
+        ------------------------
+        da.Array
+            Dask array with the image
+
+        """
         image = da.from_zarr(self.data_path)
 
         if chunk_size:
@@ -53,28 +153,75 @@ class OMEZarrReader(ImageReader):
         return image
 
     def as_numpy_array(self):
+        """
+        Method to return the image as a numpy array.
+
+        Returns
+        ------------------------
+        np.ndarray
+            Numpy array with the image
+
+        """
         return zarr.open(self.data_path, "r")[:]
 
     @property
     def shape(self):
+        """
+        Method to return the shape of the image.
+
+        Returns
+        ------------------------
+        Tuple
+            Tuple with the shape of the image
+
+        """
         return zarr.open(self.data_path, "r").shape
 
     @property
     def chunks(self):
+        """
+        Method to return the chunks of the image.
+
+        Returns
+        ------------------------
+        Tuple
+            Tuple with the chunks of the image
+
+        """
         return zarr.open(self.data_path, "r").chunks
 
 
 class ImageReaderFactory:
     def __init__(self):
+        """
+        Class to create the image reader factory.
+        """
         self.__extensions = [".zarr"]  # , ".npy"]
-
         self.factory = {".zarr": OMEZarrReader}
 
     @property
-    def extensions(self):
+    def extensions(self) -> List:
+        """
+        Method to return the allowed format extensions of the images.
+
+        Returns
+        ------------------------
+        List
+            List with the allowed image format extensions
+
+        """
         return self.__extensions
 
     def create(self, data_path: PathLike) -> ImageReader:
+        """
+        Method to create the image reader based on the format.
+
+        Returns
+        ------------------------
+        List
+            List with the allowed image format extensions
+
+        """
 
         data_path = Path(data_path)
         ext = data_path.suffix
@@ -207,17 +354,3 @@ def get_data(
         transform = np.matrix([[1, 0, 0], [0, 1, 1800], [0, 0, 1]])
 
         return [loaded_img_1, loaded_img_2, transform]
-
-
-def main():
-    ome_zarr_tile = "C:/Users/camilo.laiton/Documents/registration_evaluation/src/eval_reg/images/Ex_488_Em_525_468770_468770_830620_012820.zarr"
-    tile = ImageReaderFactory().create(ome_zarr_tile)
-    print(f"Tile shape: {tile.shape} Tile chunks: {tile.shape}")
-    tile_dask = tile.as_dask_array()
-    tile_numpy = tile.as_numpy_array()
-
-    print(tile_dask, tile_numpy, type(tile_dask), type(tile_numpy))
-
-
-if __name__ == "__main__":
-    main()

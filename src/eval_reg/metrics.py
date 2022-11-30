@@ -29,7 +29,44 @@ class ImageMetrics(ABC):
         window_size: int,
         compute_dask: Optional[bool] = True,
         dtype: Optional[Type] = np.float64,
-    ):
+    ) -> None:
+        """
+        Class constructor.
+
+        Parameters
+        ------------------------
+        image_1: ArrayLike
+            Data of image 1
+
+        image_2: ArrayLike
+            Data of image 2
+
+        metric_type: str
+            Acronym of the metric that will be computed
+
+        window_size: int
+            Window size (horizontal and vertical) of the patch extracted from the images based
+            on a point located in the same coordinate system
+
+            |---- (window_size * 2) + 1 ----|
+            |                               |
+            |                               |
+            |                               |
+            |              .                |
+            |                               |
+            |                               |
+            |                               |
+            |-------------------------------|
+
+        compute_dask: Boolean
+            Boolean that indicates if the dask graph will be computed
+            in the case of a large image. Default True, False returns
+            the dask jobs and they have to be executed outside.
+
+        dtype: Type
+            Dtype used to compute the metrics.
+
+        """
         self.__image_1 = image_1
         self.__image_2 = image_2
         self.__metric_type = metric_type
@@ -651,6 +688,43 @@ class LargeImageMetrics(ImageMetrics):
         metric_type: str,
         window_size: int,
     ):
+        """
+        Class constructor of large image metrics.
+
+        Parameters
+        ------------------------
+        image_1: ArrayLike
+            Data of image 1
+
+        image_2: ArrayLike
+            Data of image 2
+
+        metric_type: str
+            Acronym of the metric that will be computed
+
+        window_size: int
+            Window size (horizontal and vertical) of the patch extracted from the images based
+            on a point located in the same coordinate system
+
+            |---- (window_size * 2) + 1 ----|
+            |                               |
+            |                               |
+            |                               |
+            |              .                |
+            |                               |
+            |                               |
+            |                               |
+            |-------------------------------|
+
+        compute_dask: Boolean
+            Boolean that indicates if the dask graph will be computed
+            in the case of a large image. Default True, False returns
+            the dask jobs and they have to be executed outside.
+
+        dtype: Type
+            Dtype used to compute the metrics.
+
+        """
         super().__init__(image_1, image_2, metric_type, window_size)
 
     def get_patches(
@@ -940,7 +1014,23 @@ class LargeImageMetrics(ImageMetrics):
     def normalized_cross_correlation(
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
-        "See detailed description in https://itk.org/Doxygen/html/classitk_1_1CorrelationImageToImageMetricv4.html"
+        """
+        Method to compute the normalized cross correlation error metric based on ITK snap implementation using dask.
+        See detailed description in https://itk.org/Doxygen/html/classitk_1_1CorrelationImageToImageMetricv4.html
+
+        Parameters
+        ------------------------
+        patch_1: ArrayLike
+            2D/3D patch of extracted from the image 1 and based on a windowed point.
+
+        patch_2: ArrayLike
+            2D/3D patch of extracted from the image 2 and based on a windowed point.
+
+        Returns
+        ------------------------
+        float
+            Float with the value of the normalized cross correlation error.
+        """
         value_error = None
 
         try:
@@ -983,9 +1073,27 @@ class LargeImageMetrics(ImageMetrics):
     def mutual_information(
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
-        # Limitation with dask mutual information, computationally expensive
-        # since we have to go 3 times per patch of data to calculate the joint histogram
-        # One for min, one for max and one for hist
+        """
+        Method to compute the mutual information error metric using dask.
+
+        Note: Limitation with dask mutual information: it is computationally expensive
+        since we have to go 3 times per patch of data to calculate the joint histogram.
+        One for min, one for max and one for hist.
+
+        Parameters
+        ------------------------
+        patch_1: ArrayLike
+            2D/3D patch of extracted from the image 1 and based on a windowed point.
+
+        patch_2: ArrayLike
+            2D/3D patch of extracted from the image 2 and based on a windowed point.
+
+        Returns
+        ------------------------
+        float
+            Float with the value of the mutual information error.
+        """
+
         value_error = None
 
         try:
@@ -1032,9 +1140,32 @@ class LargeImageMetrics(ImageMetrics):
     def normalized_mutual_information(
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
-        # Limitation with dask mutual information, computationally expensive
-        # since we have to go 3 times per patch of data to calculate the joint histogram
-        # One for min, one for max and one for hist
+        """
+        Method to compute the mutual information error metric using dask.
+
+        Note 1: Check the used dtype to reach a higher precision in the metric
+
+        Note 2: Limitation with dask normalized mutual information: it is computationally expensive
+        since we have to go 3 times per patch of data to calculate the joint histogram.
+        One for min, one for max and one for hist.
+
+        See: Normalised Mutual Information of: A normalized entropy measure of 3-D medical image alignment,
+        Studholme,  jhill & jhawkes (1998).
+
+        Parameters
+        ------------------------
+        patch_1: ArrayLike
+            2D/3D patch of extracted from the image 1 and based on a windowed point.
+
+        patch_2: ArrayLike
+            2D/3D patch of extracted from the image 2 and based on a windowed point.
+
+        Returns
+        ------------------------
+        float
+            Float with the value of the mutual information error.
+        """
+
         value_error = None
 
         try:
@@ -1107,6 +1238,24 @@ class LargeImageMetrics(ImageMetrics):
     def peak_signal_to_noise_ratio(
         self, patch_1: ArrayLike, patch_2: ArrayLike, img_max_val: float = 255
     ) -> float:
+        """
+        Method to compute a the peak signal to noise ratio error metric using dask.
+
+        See: https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
+
+        Parameters
+        ------------------------
+        patch_1: ArrayLike
+            2D/3D patch of extracted from the image 1 and based on a windowed point.
+
+        patch_2: ArrayLike
+            2D/3D patch of extracted from the image 2 and based on a windowed point.
+
+        Returns
+        ------------------------
+        float
+            Float with the value of the peak signal to noise ratio error.
+        """
         mse = self.mean_squared_error(patch_1, patch_2)
 
         psnr = None
@@ -1126,7 +1275,26 @@ class LargeImageMetrics(ImageMetrics):
         T2: float = 160,
     ) -> float:
         """
-        L. Zhang, L. Zhang, X. Mou and D. Zhang, "FSIM: A Feature Similarity Index for Image Quality Assessment," in IEEE Transactions on Image Processing, vol. 20, no. 8, pp. 2378-2386, Aug. 2011, doi: 10.1109/TIP.2011.2109730.
+        Method to compute a the feature similarity index metric error metric using dask.
+
+        See: L. Zhang, L. Zhang, X. Mou and D. Zhang, "FSIM: A Feature Similarity Index for Image Quality Assessment,"
+        in IEEE Transactions on Image Processing, vol. 20, no. 8, pp. 2378-2386, Aug. 2011, doi: 10.1109/TIP.2011.2109730.
+
+        Note: Currently not computed using dask since we need to convert phasecong
+        to dask compatible if Sharmi agrees
+
+        Parameters
+        ------------------------
+        patch_1: ArrayLike
+            2D/3D patch of extracted from the image 1 and based on a windowed point.
+
+        patch_2: ArrayLike
+            2D/3D patch of extracted from the image 2 and based on a windowed point.
+
+        Returns
+        ------------------------
+        float
+            Float with the value of the feature similarity index metric error.
         """
 
         raise NotImplementedError(
@@ -1253,6 +1421,43 @@ class SmallImageMetrics(ImageMetrics):
         metric_type: str,
         window_size: int,
     ):
+        """
+        Class constructor of small image metrics.
+
+        Parameters
+        ------------------------
+        image_1: ArrayLike
+            Data of image 1
+
+        image_2: ArrayLike
+            Data of image 2
+
+        metric_type: str
+            Acronym of the metric that will be computed
+
+        window_size: int
+            Window size (horizontal and vertical) of the patch extracted from the images based
+            on a point located in the same coordinate system
+
+            |---- (window_size * 2) + 1 ----|
+            |                               |
+            |                               |
+            |                               |
+            |              .                |
+            |                               |
+            |                               |
+            |                               |
+            |-------------------------------|
+
+        compute_dask: Boolean
+            Boolean that indicates if the dask graph will be computed
+            in the case of a large image. Default True, False returns
+            the dask jobs and they have to be executed outside.
+
+        dtype: Type
+            Dtype used to compute the metrics.
+
+        """
         super().__init__(image_1, image_2, metric_type, window_size)
 
     def get_patches(
@@ -1407,6 +1612,22 @@ class SmallImageMetrics(ImageMetrics):
     def normalized_cross_correlation_traditional(
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
+        """
+        Method to compute the normalized cross correlation error metric using numpy.
+
+        Parameters
+        ------------------------
+        patch_1: ArrayLike
+            2D/3D patch of extracted from the image 1 and based on a windowed point.
+
+        patch_2: ArrayLike
+            2D/3D patch of extracted from the image 2 and based on a windowed point.
+
+        Returns
+        ------------------------
+        float
+            Float with the value of the normalized cross correlation error.
+        """
 
         if patch_1.ndim != 1:
             patch_1 = patch_1.flatten()
@@ -1424,24 +1645,40 @@ class SmallImageMetrics(ImageMetrics):
         numerator = np.transpose(centered_patch_1).dot(centered_patch_2)
 
         # denominator
-        norm_patch_1 = np.sqrt(
+        squared_centered_patch_1 = np.sqrt(
             np.transpose(centered_patch_1).dot(centered_patch_1),
             dtype=self.dtype,
         )
-        norm_patch_2 = np.sqrt(
+        squared_centered_patch_2 = np.sqrt(
             np.transpose(centered_patch_2).dot(centered_patch_2),
             dtype=self.dtype,
         )
 
-        # Multiplicating norms
-        denominator = norm_patch_1 * norm_patch_2
+        # Multiplicating squared centered patches
+        denominator = squared_centered_patch_1 * squared_centered_patch_2
 
         return numerator / denominator
 
     def normalized_cross_correlation(
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
-        "See detailed description in https://itk.org/Doxygen/html/classitk_1_1CorrelationImageToImageMetricv4.html"
+        """
+        Method to compute the normalized cross correlation error metric based on ITK snap implementation using numpy.
+        See detailed description in https://itk.org/Doxygen/html/classitk_1_1CorrelationImageToImageMetricv4.html
+
+        Parameters
+        ------------------------
+        patch_1: ArrayLike
+            2D/3D patch of extracted from the image 1 and based on a windowed point.
+
+        patch_2: ArrayLike
+            2D/3D patch of extracted from the image 2 and based on a windowed point.
+
+        Returns
+        ------------------------
+        float
+            Float with the value of the normalized cross correlation error.
+        """
 
         if patch_1.ndim != 1:
             patch_1 = patch_1.flatten()
@@ -1473,8 +1710,23 @@ class SmallImageMetrics(ImageMetrics):
     def mutual_information(
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
+        """
+        Method to compute the mutual information error metric using numpy.
+        Note: Check the used dtype to reach a higher precision in the metric
 
-        # float16 by default, for a higher precision it could be increased
+        Parameters
+        ------------------------
+        patch_1: ArrayLike
+            2D/3D patch of extracted from the image 1 and based on a windowed point.
+
+        patch_2: ArrayLike
+            2D/3D patch of extracted from the image 2 and based on a windowed point.
+
+        Returns
+        ------------------------
+        float
+            Float with the value of the mutual information error.
+        """
         joint_histogram, _, _ = np.histogram2d(patch_1, patch_2)
         pxy = joint_histogram / np.sum(joint_histogram, dtype=self.dtype)
         py = np.sum(pxy, axis=0, dtype=self.dtype)
@@ -1497,8 +1749,27 @@ class SmallImageMetrics(ImageMetrics):
     def normalized_mutual_information(
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
+        """
+        Method to compute the mutual information error metric using numpy.
+        Note: Check the used dtype to reach a higher precision in the metric
 
-        # Normalised Mutual Information of: A normalized entropy measure of 3-D medical image alignment, Studholme,  jhill & jhawkes (1998).
+        See: Normalised Mutual Information of: A normalized entropy measure of 3-D medical image alignment,
+        Studholme,  jhill & jhawkes (1998).
+
+        Parameters
+        ------------------------
+        patch_1: ArrayLike
+            2D/3D patch of extracted from the image 1 and based on a windowed point.
+
+        patch_2: ArrayLike
+            2D/3D patch of extracted from the image 2 and based on a windowed point.
+
+        Returns
+        ------------------------
+        float
+            Float with the value of the mutual information error.
+        """
+
         joint_histogram, _, _ = np.histogram2d(patch_1, patch_2)
 
         # Compute marginal histograms
@@ -1529,6 +1800,11 @@ class SmallImageMetrics(ImageMetrics):
         Method to compute the information theoretic similarity error metric with numpy as cv2.
         It is assumed that the e term refers to euler number from the paper.
         Based on https://github.com/up42/image-similarity-measures package
+
+
+        Mohammed Abdulameer Aljanabi, Zahir M. Hussain, Noor Abd Alrazak Shnain & Song Feng Lu (2019)
+        Design of a hybrid measure for image similarity: a statistical, algebraic, and information-theoretic approach,
+        European Journal of Remote Sensing, 52:sup4, 2-15, DOI: 10.1080/22797254.2019.1628617
 
         Parameters
         ------------------------
@@ -1603,6 +1879,24 @@ class SmallImageMetrics(ImageMetrics):
     def peak_signal_to_noise_ratio(
         self, patch_1: ArrayLike, patch_2: ArrayLike, img_max_val: float = 255
     ) -> float:
+        """
+        Method to compute a the peak signal to noise ratio error metric using numpy.
+
+        See: https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
+
+        Parameters
+        ------------------------
+        patch_1: ArrayLike
+            2D/3D patch of extracted from the image 1 and based on a windowed point.
+
+        patch_2: ArrayLike
+            2D/3D patch of extracted from the image 2 and based on a windowed point.
+
+        Returns
+        ------------------------
+        float
+            Float with the value of the peak signal to noise ratio error.
+        """
         mse = self.mean_squared_error(patch_1, patch_2)
         psnr = 20 * np.log10(
             img_max_val / np.sqrt(mse, dtype=self.dtype), dtype=self.dtype
@@ -1618,7 +1912,23 @@ class SmallImageMetrics(ImageMetrics):
         T2: float = 160,
     ) -> float:
         """
-        L. Zhang, L. Zhang, X. Mou and D. Zhang, "FSIM: A Feature Similarity Index for Image Quality Assessment," in IEEE Transactions on Image Processing, vol. 20, no. 8, pp. 2378-2386, Aug. 2011, doi: 10.1109/TIP.2011.2109730.
+        Method to compute a the feature similarity index metric error metric using numpy and cv2.
+
+        See: L. Zhang, L. Zhang, X. Mou and D. Zhang, "FSIM: A Feature Similarity Index for Image Quality Assessment,"
+        in IEEE Transactions on Image Processing, vol. 20, no. 8, pp. 2378-2386, Aug. 2011, doi: 10.1109/TIP.2011.2109730.
+
+        Parameters
+        ------------------------
+        patch_1: ArrayLike
+            2D/3D patch of extracted from the image 1 and based on a windowed point.
+
+        patch_2: ArrayLike
+            2D/3D patch of extracted from the image 2 and based on a windowed point.
+
+        Returns
+        ------------------------
+        float
+            Float with the value of the feature similarity index metric error.
         """
 
         def numerical_gradient_magnitude(
@@ -1719,6 +2029,9 @@ class SmallImageMetrics(ImageMetrics):
 
 class ImageMetricsFactory:
     def __init__(self):
+        """
+        Class constructor of image metrics factory.
+        """
         self.__array_type = [da.core.Array, np.ndarray]
 
         self.factory = {
@@ -1728,15 +2041,44 @@ class ImageMetricsFactory:
 
     @property
     def array_type(self) -> List:
+        """
+        Getter to return the array type.
+
+        Returns
+        ------------------------
+        List
+            List thar contains the accepted dtypes for the images
+
+        """
         return self.__array_type
 
     def create(
         self,
-        image_1: ImageReader,
-        image_2: ImageReader,
+        image_1: ArrayLike,
+        image_2: ArrayLike,
         metric_type: str,
         window_size: int,
     ) -> ImageMetrics:
+        """
+        Method to create the image reader depending on the type of image:
+        - large: Metrics will be computed using dask.
+        - small: Metrics will be computed using numpy, sklearn, scipy or cv2 where it's needed.
+
+        Parameters
+        ------------------------
+        image_1: ArrayLike
+            2D/3D image data.
+
+        image_2: ArrayLike
+            2D/3D image data.
+
+        Returns
+        ------------------------
+        ImageMetrics
+            Class that contains the image metrics to be computed depending on the type of image.
+            - large: LargeImageMetrics class
+            - small: SmallImageMetrics class
+        """
         image_type = type(image_1)
 
         if image_type not in self.__array_type:
