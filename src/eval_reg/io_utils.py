@@ -1,13 +1,37 @@
+import os
 from abc import ABC, abstractmethod, abstractproperty
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
 
 import dask.array as da
 import numpy as np
+import pims
+import tifffile
 import zarr
+from dask.array.core import Array
+from dask.base import tokenize
+from skimage.io import imread as sk_imread
 
 # IO types
 PathLike = Union[str, Path]
+ArrayLike = Union[da.Array, np.array]
+
+
+def add_leading_dim(data: ArrayLike):
+    """
+    Adds a new dimension to existing data.
+    Parameters
+    ------------------------
+    arr: ArrayLike
+        Dask/numpy array that contains image data.
+
+    Returns
+    ------------------------
+    ArrayLike:
+        Padded dask/numpy array.
+    """
+
+    return data[None, ...]
 
 
 class ImageReader(ABC):
@@ -53,6 +77,14 @@ class ImageReader(ABC):
         ------------------------
         np.ndarray
             Numpy array with the image
+
+        """
+        pass
+
+    @abstractmethod
+    def close_handler(self) -> None:
+        """
+        Abstract method to close the image hander when it's necessary.
 
         """
         pass
@@ -164,6 +196,12 @@ class OMEZarrReader(ImageReader):
         """
         return zarr.open(self.data_path, "r")[:]
 
+    def close_handler(self) -> None:
+        """
+        Method to close the image hander when it's necessary.
+        """
+        pass
+
     @property
     def shape(self):
         """
@@ -191,13 +229,114 @@ class OMEZarrReader(ImageReader):
         return zarr.open(self.data_path, "r").chunks
 
 
+class TiffReader(ImageReader):
+    def __init__(self, data_path: PathLike) -> None:
+        """
+        Class constructor of image Tiff reader.
+
+        Parameters
+        ------------------------
+        data_path: PathLike
+            Path where the image is located
+
+        """
+        super().__init__(Path(data_path))
+        self.tiff = tifffile.TiffFile(self.data_path)
+
+    def as_dask_array(self, chunk_size: Optional[Any] = None) -> da.Array:
+        """
+        Method to return the image as a dask array.
+
+        Parameters
+        ------------------------
+        chunk_size: Optional[Any]
+            If provided, the image will be rechunked to the desired
+            chunksize
+
+        Returns
+        ------------------------
+        da.Array
+            Dask array with the image
+
+        """
+
+        name = "imread-%s" % tokenize(
+            self.data_path, map(os.path.getmtime, self.data_path)
+        )
+
+        with pims.open(self.data_path) as imgs:
+            shape = (1,) + (len(imgs),) + imgs.frame_shape
+            dtype = np.dtype(imgs.pixel_type)
+
+        key = [(name,) + (0,) * len(shape)]
+        value = [(add_leading_dim, (sk_imread, self.data_path))]
+        dask_arr = dict(zip(key, value))
+
+        if chunk_size is None:
+            chunk_size = tuple((d,) for d in shape)
+
+        return Array(dask_arr, name, chunk_size, dtype)
+
+    def as_numpy_array(self) -> np.ndarray:
+        """
+        Abstract method to return the image as a numpy array.
+
+        Returns
+        ------------------------
+        np.ndarray
+            Numpy array with the image
+
+        """
+        return self.tiff.asarray()
+
+    def shape(self) -> Tuple:
+        """
+        Abstract method to return the shape of the image.
+
+        Returns
+        ------------------------
+        Tuple
+            Tuple with the shape of the image
+
+        """
+        self.tiff.aszarr().shape
+
+    def chunks(self) -> Tuple:
+        """
+        Abstract method to return the chunks of the image if it's possible.
+
+        Returns
+        ------------------------
+        Tuple
+            Tuple with the chunks of the image
+
+        """
+        self.tiff.aszarr().chunks
+
+    def close_handler(self) -> None:
+        """
+        Closes image handler
+        """
+        if self.tiff is not None:
+            self.tiff.close()
+            self.tiff = None
+
+    def __del__(self) -> None:
+        """Overriding destructor to safely close image"""
+        self.close_handler()
+
+
 class ImageReaderFactory:
     def __init__(self):
         """
         Class to create the image reader factory.
         """
-        self.__extensions = [".zarr"]  # , ".npy"]
-        self.factory = {".zarr": OMEZarrReader}
+        self.__extensions = [".zarr", ".tif", ".tiff"]
+        self.factory = {
+            ".zarr": OMEZarrReader,
+            ".tif": TiffReader,
+            ".tiff": TiffReader,
+        }
 
     @property
     def extensions(self) -> List:
@@ -262,7 +401,7 @@ def create_sample_data_2D(
 
     points = (x, y)
     image = value_func_3d(*np.meshgrid(*points, indexing="ij"))
-    transform = np.matrix([[1, 0, delta_x], [0, 1, delta_y], [0, 0, 1]])
+    transform = np.matrix([[1, 0, delta_y], [0, 1, delta_x], [0, 0, 1]])
 
     return [image, image, transform]
 
@@ -304,8 +443,8 @@ def create_sample_data_3D(
     image = value_func_3d(*np.meshgrid(*points, indexing="ij"))
     transform = np.matrix(
         [
-            [1, 0, 0, delta_x],
-            [0, 1, 0, delta_y],
+            [1, 0, 0, delta_y],
+            [0, 1, 0, delta_x],
             [0, 0, 1, delta_z],
             [0, 0, 0, 1],
         ]
@@ -351,6 +490,15 @@ def get_data(
 
         # TODO Get transformation matrix from terastitcher
         # transform = np.matrix([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
-        transform = np.matrix([[1, 0, 0], [0, 1, 1800], [0, 0, 1]])
+        transform = np.matrix([[1, 0, 0], [0, 1, 1800], [0, 0, 1]])  # Y  # X
+
+        # transform = np.matrix(
+        #     [
+        #         [1, 0, 0, 0],  # Z
+        #         [0, 1, 0, 0],  # Y
+        #         [0, 0, 1, 400],  # X
+        #         [0, 0, 0, 1],
+        #     ]
+        # )
 
         return [loaded_img_1, loaded_img_2, transform]

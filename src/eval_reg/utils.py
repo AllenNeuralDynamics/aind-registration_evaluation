@@ -113,6 +113,7 @@ def sample_points_in_overlap(
     bounds_1: np.ndarray,
     bounds_2: np.ndarray,
     numpoints: int,
+    image_shape: Tuple,
     sample_type: Optional[str] = "random",
 ) -> np.ndarray:
     """
@@ -177,12 +178,11 @@ def sample_points_in_overlap(
         for dim_idx in range(n_dims):
 
             o_min = max(bounds_1[0][dim_idx], bounds_2[0][dim_idx])
+            o_max = min(bounds_1[1][dim_idx], bounds_2[1][dim_idx]) - 1
 
-            o_max = min(bounds_1[1][dim_idx], bounds_2[1][dim_idx])
+            random_choice = np.random.choice(range(o_min, o_max), numpoints)
 
-            dims_sample_points.append(
-                np.random.choice(range(o_min, o_max), numpoints)
-            )
+            dims_sample_points.append(random_choice)
 
     elif sample_type == "grid":
         # Only for 2D so far
@@ -318,7 +318,7 @@ def prune_points_to_fit_window(
             False otherwise.
         """
         modified_point = nested_point + window_size
-        point_window_inside = np.less_equal(modified_point, image_shape)
+        point_window_inside = np.less(modified_point, image_shape)
         unique_val = np.unique(point_window_inside)
 
         if len(unique_val) == 1 and unique_val[0]:
@@ -381,6 +381,112 @@ def extract_data(
     return arr[tuple(dynamic_indices)]
 
 
+class SliceTracker:
+    def __init__(
+        self,
+        fig_axes,
+        image_1_data,
+        image_2_data,
+        points,
+        selected_ponts,
+        # rectangles,
+        vmin=0,
+        vmax=200,
+        alpha=0.7,
+        color="bone",
+    ) -> None:
+        self.axes = fig_axes
+        self.image_1_data = image_1_data
+        self.image_2_data = image_2_data
+        self.vmin = vmin
+        self.vmax = vmax
+        self.alpha = alpha
+        self.color = color
+        self.points = points
+        self.selected_points = selected_ponts
+        self.points_1 = self.points_2 = None
+        self.plot_image_1 = self.plot_image_2 = None
+
+        # Setting up message
+        self.axes.set_title("Scroll to move to slices")
+
+        self.__slices, self.__rows, self.__cols = image_1_data.shape
+
+        # Starting visualization in the middle of the 3D block
+        self.idx = self.__slices // 2
+        self.get_current_slice()
+        self.update_slice()
+
+    def search_points_in_slice(self):
+        def search_points(points: List):
+
+            points_x = []
+            points_y = []
+
+            for z_point_pos in range(len(points[-1])):
+                if self.idx == points[-1][z_point_pos]:
+                    points_x.append(points[0][z_point_pos])
+                    points_y.append(points[1][z_point_pos])
+
+            return points_x, points_y
+
+        points_x, points_y = search_points(self.points)
+        sel_points_x, sel_points_y = search_points(self.selected_points)
+
+        return [points_x, points_y], [sel_points_x, sel_points_y]
+
+    def on_scroll(self, event):
+        # print("%s %s" % (event.button, event.step))
+        if event.button == "up":
+            self.idx = (self.idx + 1) % self.__slices
+        else:
+            self.idx = (self.idx - 1) % self.__slices
+        self.update_slice()
+
+    def update_slice(self):
+        # self.axes.clear()
+
+        self.update_points()
+        self.get_current_slice()
+
+        self.axes.set_ylabel("Slice %s" % self.idx)
+        self.axes.figure.canvas.draw()
+
+    def update_points(self):
+        pts, sl_pts = self.search_points_in_slice()
+
+        if self.points_1 and self.points_2:
+            self.points_1.remove()
+            self.points_2.remove()
+
+        self.points_1 = self.axes.scatter(x=pts[0], y=pts[1], c="r", s=10)
+        self.points_2 = self.axes.scatter(
+            x=sl_pts[0], y=sl_pts[1], c="b", s=10
+        )
+
+    def get_current_slice(self):
+
+        if self.plot_image_1 and self.plot_image_2:
+            self.plot_image_1.remove()
+            self.plot_image_2.remove()
+
+        self.plot_image_1 = self.axes.imshow(
+            self.image_1_data[self.idx, :, :],
+            alpha=self.alpha,
+            cmap=self.color,
+            vmin=self.vmin,
+            vmax=self.vmax,
+        )
+
+        self.plot_image_2 = self.axes.imshow(
+            self.image_2_data[self.idx, :, :],
+            alpha=self.alpha,
+            cmap=self.color,
+            vmin=self.vmin,
+            vmax=self.vmax,
+        )
+
+
 def visualize_images(
     image_1_data: ArrayLike,
     image_2_data: ArrayLike,
@@ -412,10 +518,6 @@ def visualize_images(
 
     """
 
-    def adjust_axis_dims(bounds: List):
-        # TODO
-        pass
-
     if image_1_data.ndim != image_2_data.ndim:
         raise ValueError("Images should have the same shape")
 
@@ -428,28 +530,34 @@ def visualize_images(
 
     if image_1_data.ndim == 2:
         # plot directly the images and grid
-        print(bounds)
 
+        # Getting max boundaries in X and Y
         size_x = max(bounds_1[1][0], bounds_2[1][0])
         size_y = max(bounds_1[1][1], bounds_2[1][1])
 
+        # Image within same coordinate system
         adjusted_img_1 = np.ones((size_x, size_y)) * 255
         adjusted_img_2 = np.ones((size_x, size_y)) * 255
 
+        # Getting data from the images to common coordinate image
         adjusted_img_1[: bounds_1[1][0], : bounds_1[1][1]] = image_1_data
         adjusted_img_2[bounds_2[0][0] :, bounds_2[0][1] :] = image_2_data
 
         fig, ax = plt.subplots()
 
+        # Setting X,Y positions of points within the grid
         y_points = [point[0] for point in pruned_points]
         x_points = [point[1] for point in pruned_points]
 
+        # Setting X,Y positions of points within the grid that were used to metric estimation
         selected_y_points = [point[0] for point in selected_pruned_points]
         selected_x_points = [point[1] for point in selected_pruned_points]
 
+        # Scattering points within image in common coordinate system
         plt.scatter(x=x_points, y=y_points, c="r", s=10)
         plt.scatter(x=selected_x_points, y=selected_y_points, c="b", s=10)
 
+        # Rectangles to divide images
         rectangle_image_1 = Rectangle(
             xy=(bounds_1[0][1], bounds_1[0][0]),
             width=bounds_1[1][1],
@@ -462,14 +570,15 @@ def visualize_images(
 
         rectangle_image_2 = Rectangle(
             xy=(bounds_2[0][1], bounds_2[0][0]),
-            width=bounds_2[1][1],
-            height=bounds_2[1][0],
+            width=bounds_1[1][1],
+            height=bounds_1[1][0],
             linewidth=1,
             edgecolor="#13FF00",
             facecolor="none",
             linestyle="--",
         )
 
+        # Alpha for overlaying
         alpha = 0.7
         ax.imshow(adjusted_img_1, alpha=alpha)  # , cmap='bone')
         ax.imshow(adjusted_img_2, alpha=alpha)  # , cmap='bone')
@@ -481,4 +590,78 @@ def visualize_images(
 
     else:
         # 3D image, find a way to render 3D images with 3D grid
-        pass
+
+        size_x = max(bounds_1[1][0], bounds_2[1][0])
+        size_y = max(bounds_1[1][1], bounds_2[1][1])
+        size_z = max(bounds_1[1][2], bounds_2[1][2])
+
+        # Image within same coordinate system
+        adjusted_img_1 = np.ones((size_x, size_y, size_z)) * 255
+        adjusted_img_2 = np.ones((size_x, size_y, size_z)) * 255
+
+        # Getting data from the images to common coordinate image
+        adjusted_img_1[
+            : bounds_1[1][0], : bounds_1[1][1], : bounds_1[1][2]
+        ] = image_1_data
+        adjusted_img_2[
+            bounds_2[0][0] :, bounds_2[0][1] :, bounds_2[0][2] :
+        ] = image_2_data
+
+        fig, ax = plt.subplots()
+
+        # Setting Z, Y, X positions of points within the grid
+        z_points = [point[0] for point in pruned_points]
+        y_points = [point[1] for point in pruned_points]
+        x_points = [point[2] for point in pruned_points]
+
+        # Setting Z,Y,X positions of points within the grid that were used to metric estimation
+        selected_z_points = [point[0] for point in selected_pruned_points]
+        selected_y_points = [point[1] for point in selected_pruned_points]
+        selected_x_points = [point[2] for point in selected_pruned_points]
+
+        points = [x_points, y_points, z_points]
+        selected_points = [
+            selected_x_points,
+            selected_y_points,
+            selected_z_points,
+        ]
+
+        # visualize_image_3D(combined_volume, points, selected_points)
+
+        # Rectangles to divide images
+        rectangle_image_1 = Rectangle(
+            xy=(bounds_1[0][2], bounds_1[0][1]),
+            width=bounds_1[1][2],
+            height=bounds_1[1][1],
+            linewidth=1,
+            edgecolor="#FF2D00",
+            facecolor="none",
+            linestyle=":",
+        )
+
+        rectangle_image_2 = Rectangle(
+            xy=(bounds_2[0][2], bounds_2[0][1]),
+            width=bounds_1[1][2],
+            height=bounds_1[1][1],
+            linewidth=1,
+            edgecolor="#13FF00",
+            facecolor="none",
+            linestyle="--",
+        )
+
+        fig, ax = plt.subplots()
+
+        tracker = SliceTracker(
+            fig_axes=ax,
+            image_1_data=adjusted_img_1,
+            image_2_data=adjusted_img_2,
+            points=points,
+            selected_ponts=selected_points,
+            # rectangles=[rectangle_image_1, rectangle_image_2]
+        )
+
+        ax.add_patch(rectangle_image_1)
+        ax.add_patch(rectangle_image_2)
+        fig.canvas.mpl_connect("scroll_event", tracker.on_scroll)
+        fig.tight_layout()
+        plt.show()

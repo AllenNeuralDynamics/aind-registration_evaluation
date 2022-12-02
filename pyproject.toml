@@ -23,7 +23,9 @@ dependencies = [
     'matplotlib',
     'numpy',
     'zarr',
-    'scikit-learn'
+    'scikit-learn',
+    'pims',
+    'tifffile'
 ]
 
 [project.optional-dependencies]

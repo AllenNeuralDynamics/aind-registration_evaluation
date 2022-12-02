@@ -77,13 +77,10 @@ class EvalStitching(ArgSchemaParser):
         image_1_shape = image_1_data.shape
         image_2_shape = image_2_data.shape
 
-        # print("Got data: ", image_1_shape, image_2_shape, transform, image_1_data.dtype, image_1_data.dtype)
-
         # calculate extent of overlap using transforms in common coordinate system (assume for image 1)
         bounds_1, bounds_2 = utils.calculate_bounds(
             image_1_shape, image_2_shape, transform
         )
-        # print("BOUNDS1: ", bounds_1, "BOUNDS2: ", bounds_2)
 
         # #Sample points in overlapping bounds
         points = utils.sample_points_in_overlap(
@@ -91,7 +88,10 @@ class EvalStitching(ArgSchemaParser):
             bounds_2=bounds_2,
             numpoints=self.args["sampling_info"]["numpoints"],
             sample_type=self.args["sampling_info"]["sampling_type"],
+            image_shape=image_1_shape,
         )
+
+        # print("Points: ", points)
 
         # Points that fit in window based on a window size
         pruned_points = utils.prune_points_to_fit_window(
@@ -132,13 +132,13 @@ class EvalStitching(ArgSchemaParser):
         message = f"Computed metric: {metric} \nMean: {np.mean(metric_per_point)} \nStd: {np.std(metric_per_point)}\nNumber of calculated points: {computed_points}\nDiscarded points by metric: {points.shape[0] - discarded_points_window - computed_points}"
         LOGGER.info(message)
 
-        # utils.visualize_images(
-        #     image_1_data,
-        #     image_2_data,
-        #     [bounds_1, bounds_2],
-        #     pruned_points,
-        #     selected_pruned_points,
-        # )
+        utils.visualize_images(
+            image_1_data,
+            image_2_data,
+            [bounds_1, bounds_2],
+            pruned_points,
+            selected_pruned_points,
+        )
 
 
 def get_default_config(filename: PathLike = None):
@@ -185,6 +185,9 @@ def main():
     default_config["image_2"] = (
         BASE_PATH + "Ex_488_Em_525_501170_501170_830620_012820.zarr"
     )
+
+    # default_config["image_1"] = BASE_PATH + "block_10.tif"
+    # default_config["image_2"] = BASE_PATH + "block_10.tif"
 
     import time
 

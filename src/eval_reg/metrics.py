@@ -773,6 +773,7 @@ class LargeImageMetrics(ImageMetrics):
             patch_1 = self.image_1.vindex[
                 point_1_windowed[0], point_1_windowed[1]
             ]
+
         elif len_dims == 3:
             patch_1 = self.image_1.vindex[
                 point_1_windowed[0], point_1_windowed[1], point_1_windowed[2]
