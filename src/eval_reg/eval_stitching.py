@@ -10,8 +10,9 @@ import numpy as np
 import utils
 import yaml
 from argschema import ArgSchemaParser
-from metrics import ImageMetricsFactory
-from params import EvalRegSchema
+
+from .metrics import ImageMetricsFactory
+from .params import EvalRegSchema
 
 # IO types
 PathLike = Union[str, Path]
@@ -59,13 +60,6 @@ class EvalStitching(ArgSchemaParser):
             image_1_data = utils.extract_data(image_1.as_dask_array())
             image_2_data = utils.extract_data(image_2.as_dask_array())
 
-            chunk_sizes = {
-                idx: "auto" for idx in range(len(image_1_data.shape))
-            }
-
-            image_1_data = image_1_data.rechunk(chunk_sizes)
-            image_2_data = image_2_data.rechunk(chunk_sizes)
-
         elif self.args["data_type"] == "small":
             image_1_data = utils.extract_data(image_1.as_numpy_array())
             image_2_data = utils.extract_data(image_2.as_numpy_array())
@@ -77,7 +71,8 @@ class EvalStitching(ArgSchemaParser):
         image_1_shape = image_1_data.shape
         image_2_shape = image_2_data.shape
 
-        # calculate extent of overlap using transforms in common coordinate system (assume for image 1)
+        # calculate extent of overlap using transforms
+        # in common coordinate system (assume for image 1)
         bounds_1, bounds_2 = utils.calculate_bounds(
             image_1_shape, image_2_shape, transform
         )
@@ -100,7 +95,8 @@ class EvalStitching(ArgSchemaParser):
 
         discarded_points_window = points.shape[0] - pruned_points.shape[0]
         LOGGER.info(
-            f"Number of discarded points when prunning points to window: {discarded_points_window}",
+            f"""Number of discarded points when prunning
+            points to window: {discarded_points_window}""",
         )
 
         # calculate metrics per images
@@ -129,7 +125,12 @@ class EvalStitching(ArgSchemaParser):
         metric = self.args["metric"]
         computed_points = len(metric_per_point)
 
-        message = f"Computed metric: {metric} \nMean: {np.mean(metric_per_point)} \nStd: {np.std(metric_per_point)}\nNumber of calculated points: {computed_points}\nDiscarded points by metric: {points.shape[0] - discarded_points_window - computed_points}"
+        dscrd_pts = points.shape[0] - discarded_points_window - computed_points
+        message = f"""Computed metric: {metric}
+        \nMean: {np.mean(metric_per_point)}
+        \nStd: {np.std(metric_per_point)}
+        \nNumber of calculated points: {computed_points}
+        \nDiscarded points by metric: {dscrd_pts}"""
         LOGGER.info(message)
 
         utils.visualize_images(

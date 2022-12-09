@@ -12,9 +12,10 @@ import numpy as np
 import scipy
 import sklearn.metrics as sk_metrics
 from dask import delayed
-from io_utils import ImageReader
 from phasepack import phasecong
 from skimage import metrics
+
+from .io_utils import ImageReader
 
 warnings.filterwarnings("ignore")
 ArrayLike = Union[da.core.Array, np.ndarray]
@@ -45,8 +46,9 @@ class ImageMetrics(ABC):
             Acronym of the metric that will be computed
 
         window_size: int
-            Window size (horizontal and vertical) of the patch extracted from the images based
-            on a point located in the same coordinate system
+            Window size (horizontal and vertical) of the patch
+            extracted from the images based on a point located
+            in the same coordinate system
 
             |---- (window_size * 2) + 1 ----|
             |                               |
@@ -202,7 +204,8 @@ class ImageMetrics(ABC):
     @property
     def eps(self) -> np.float:
         """
-        Getter of the difference between 1.0 and the next smallest representable float larger than 1.0.
+        Getter of the difference between 1.0 and the next
+        smallest representable float larger than 1.0.
         See: https://numpy.org/doc/stable/reference/generated/numpy.finfo.html
 
         Returns
@@ -230,7 +233,8 @@ class ImageMetrics(ABC):
     @property
     def compute_dask(self) -> bool:
         """
-        Getter of compute dask parameter which is a boolean that dictates if dask graph will be
+        Getter of compute dask parameter which is a
+        boolean that dictates if dask graph will be
         computed in-place to calculate the metric.
 
         Returns
@@ -244,15 +248,19 @@ class ImageMetrics(ABC):
     @compute_dask.setter
     def compute_dask(self, new_compute_value: bool) -> None:
         """
-        Setter of compute dask parameter which is a boolean that dictates if dask graph will be
-        computed in-place to calculate the metric.
+        Setter of compute dask parameter which is a boolean
+        that dictates if dask graph will be computed
+        in-place to calculate the metric.
 
         Parameters
         ------------------------
         new_compute_value: bool
-            Boolean that dictates if dask graph will be computed in-place to calculate the metric.
-            Set to False to get the dask jobs in order to compute them outside which would give
-            computational advantages depending on the dask config and machine(s).
+            Boolean that dictates if dask graph will be
+            computed in-place to calculate the metric.
+            Set to False to get the dask jobs in order
+            to compute them outside which would give
+            computational advantages depending on the
+            dask config and machine(s).
 
         """
         self.__compute_dask = new_compute_value
@@ -292,8 +300,9 @@ class ImageMetrics(ABC):
         Parameters
         ------------------------
         windowed_points: np.array
-            Points that are inside of the intersection area. These do not go out
-            from the area using the window size.
+            Points that are inside of the intersection area.
+            These do not go out from the area using
+            the window size.
 
         transform: np.matrix
             Transformation matrix that will be applied to get the patches
@@ -310,15 +319,18 @@ class ImageMetrics(ABC):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Abstract method to compute a metric based on two patches from the images.
+        Abstract method to compute a metric based
+        on two patches from the images.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -344,10 +356,12 @@ class ImageMetrics(ABC):
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -366,10 +380,12 @@ class ImageMetrics(ABC):
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -383,20 +399,24 @@ class ImageMetrics(ABC):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Abstract method to compute the structural similarity index error metric.
+        Abstract method to compute the structural
+        similarity index error metric.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the structural similarity index error.
+            Float with the value of the structural
+            similarity index error.
         """
         pass
 
@@ -408,10 +428,12 @@ class ImageMetrics(ABC):
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -428,10 +450,12 @@ class ImageMetrics(ABC):
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -445,20 +469,24 @@ class ImageMetrics(ABC):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Abstract method to compute the normalized cross correlation error metric.
+        Abstract method to compute the normalized
+        cross correlation error metric.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the normalized cross correlation error.
+            Float with the value of the normalized
+            cross correlation error.
         """
         pass
 
@@ -467,20 +495,24 @@ class ImageMetrics(ABC):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Abstract method to compute the mutual information error metric.
+        Abstract method to compute the mutual
+        information error metric.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the mutual information error.
+            Float with the value of the mutual
+            information error.
         """
         pass
 
@@ -489,20 +521,24 @@ class ImageMetrics(ABC):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Abstract method to compute the normalized mutual information error metric.
+        Abstract method to compute the normalized
+        mutual information error metric.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the normalized mutual information error.
+            Float with the value of the normalized
+            mutual information error.
         """
         pass
 
@@ -511,20 +547,24 @@ class ImageMetrics(ABC):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Abstract method to compute the information theoretic similarity error metric.
+        Abstract method to compute the information
+        theoretic similarity error metric.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the information theoretic similarity error.
+            Float with the value of the information
+            theoretic similarity error.
         """
         pass
 
@@ -533,20 +573,24 @@ class ImageMetrics(ABC):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Abstract method to compute a the peak signal to noise ratio error metric.
+        Abstract method to compute a the peak
+        signal to noise ratio error metric.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the peak signal to noise ratio error.
+            Float with the value of the peak
+            signal to noise ratio error.
         """
         pass
 
@@ -555,20 +599,24 @@ class ImageMetrics(ABC):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Abstract method to compute a the feature similarity index metric error metric.
+        Abstract method to compute a the feature
+        similarity index metric error metric.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the feature similarity index metric error.
+            Float with the value of the feature
+            similarity index metric error.
         """
         pass
 
@@ -576,7 +624,8 @@ class ImageMetrics(ABC):
         self, point: np.array, transform: np.matrix
     ) -> float:
         """
-        Method to calculate the metric over a point and using a transformation matrix.
+        Method to calculate the metric over a point
+        and using a transformation matrix.
 
         Parameters
         ------------------------
@@ -584,7 +633,8 @@ class ImageMetrics(ABC):
             2D/3D point in the image common coordinate system.
 
         transform: np.matrix
-            Transformation matrix that will be applied in the intersection area.
+            Transformation matrix that will be
+            applied in the intersection area.
 
         Returns
         ------------------------
@@ -611,9 +661,12 @@ class ImageMetrics(ABC):
                 for idx_dim in range(len(image_2_shape))
             ]
 
-            # Flattened points for get patches and with extra dimension for meshgrid
+            # Flattened points for get patches and
+            # with extra dimension for meshgrid
             # points_per_dim_flattened = tuple(
-            #     [np.squeeze(pt_flattened).flatten() for point_per_dim in points_per_dim]
+            #     [np.squeeze(pt_flattened).flatten()
+            #       for point_per_dim in points_per_dim
+            # ]
             # )
             points_per_dim = tuple(points_per_dim)
 
@@ -648,7 +701,8 @@ class ImageMetrics(ABC):
         self, image_array: ArrayLike
     ) -> ArrayLike:
         """
-        Method to recover the image dimensionality from a flattened array.
+        Method to recover the image dimensionality
+        from a flattened array.
 
         Parameters
         ------------------------
@@ -658,7 +712,8 @@ class ImageMetrics(ABC):
         Returns
         ------------------------
         ArrayLike
-            Reshaped array based on the window size and dimensionality.
+            Reshaped array based on the window size
+            and dimensionality.
         """
 
         # Image patch size in 2D
@@ -703,7 +758,8 @@ class LargeImageMetrics(ImageMetrics):
             Acronym of the metric that will be computed
 
         window_size: int
-            Window size (horizontal and vertical) of the patch extracted from the images based
+            Window size (horizontal and vertical) of the
+            patch extracted from the images based
             on a point located in the same coordinate system
 
             |---- (window_size * 2) + 1 ----|
@@ -736,11 +792,13 @@ class LargeImageMetrics(ImageMetrics):
         Parameters
         ------------------------
         windowed_points: np.array
-            Points that are inside of the intersection area. These do not go out
-            from the area using the window size.
+            Points that are inside of the intersection
+            area. These do not go out from the area
+            using the window size.
 
         transform: np.matrix
-            Transformation matrix that will be applied to get the patches
+            Transformation matrix that will be
+            applied to get the patches
 
         Returns
         ------------------------
@@ -796,15 +854,18 @@ class LargeImageMetrics(ImageMetrics):
         self, patch_1: da.core.Array, patch_2: da.core.Array
     ) -> float:
         """
-        Method to compute the mean squared error metric using dask.
+        Method to compute the mean squared
+        error metric using dask.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -831,15 +892,18 @@ class LargeImageMetrics(ImageMetrics):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Method to compute the mean absolue error metric using dask.
+        Method to compute the mean absolue
+        error metric using dask.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -866,20 +930,24 @@ class LargeImageMetrics(ImageMetrics):
         self, patch_1: da.core.Array, patch_2: da.core.Array
     ) -> float:
         """
-        Method to compute the structural similarity index error metric using dask.
+        Method to compute the structural similarity
+        index error metric using dask.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the structural similarity index error.
+            Float with the value of the structural
+            similarity index error.
         """
 
         value_error = None
@@ -890,7 +958,8 @@ class LargeImageMetrics(ImageMetrics):
                 lambda a, b: metrics.structural_similarity(
                     a,
                     b,
-                    # Activate these parameters to match original matlab paper , check data type
+                    # Activate these parameters to match
+                    # original matlab paper , check data type
                     # gaussian_weights=True,
                     # sigma=1.5,
                     # use_sample_covariance=False,
@@ -913,15 +982,18 @@ class LargeImageMetrics(ImageMetrics):
         self, patch_1: da.core.Array, patch_2: da.core.Array
     ) -> float:
         """
-        Method to compute the r2 score error metric using dask.
+        Method to compute the r2 score
+        error metric using dask.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -964,7 +1036,8 @@ class LargeImageMetrics(ImageMetrics):
 
                 value_error = 1 - (numerator / denominator)
 
-            # Non-zero Numerator and Zero Denominator: set values to 0.0 so it does not go to Inf
+            # Non-zero Numerator and Zero Denominator:
+            # set values to 0.0 so it does not go to Inf
             if nonzero_numerator & ~nonzero_denominator:
                 value_error = 0.0
 
@@ -985,10 +1058,12 @@ class LargeImageMetrics(ImageMetrics):
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -1016,21 +1091,26 @@ class LargeImageMetrics(ImageMetrics):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Method to compute the normalized cross correlation error metric based on ITK snap implementation using dask.
-        See detailed description in https://itk.org/Doxygen/html/classitk_1_1CorrelationImageToImageMetricv4.html
+        Method to compute the normalized cross correlation
+        error metric based on ITK snap implementation using dask.
+        See detailed description in
+        https://itk.org/Doxygen/html/classitk_1_1CorrelationImageToImageMetricv4.html
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the normalized cross correlation error.
+            Float with the value of the normalized
+            cross correlation error.
         """
         value_error = None
 
@@ -1075,19 +1155,24 @@ class LargeImageMetrics(ImageMetrics):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Method to compute the mutual information error metric using dask.
+        Method to compute the mutual information
+        error metric using dask.
 
-        Note: Limitation with dask mutual information: it is computationally expensive
-        since we have to go 3 times per patch of data to calculate the joint histogram.
-        One for min, one for max and one for hist.
+        Note: Limitation with dask mutual information:
+        it is computationally expensive since we have
+        to go 3 times per patch of data to calculate
+        the joint histogram. One for min, one for max
+        and one for hist.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -1146,20 +1231,24 @@ class LargeImageMetrics(ImageMetrics):
 
         Note 1: Check the used dtype to reach a higher precision in the metric
 
-        Note 2: Limitation with dask normalized mutual information: it is computationally expensive
-        since we have to go 3 times per patch of data to calculate the joint histogram.
+        Note 2: Limitation with dask normalized mutual information:
+        it is computationally expensive since we have to go 3 times
+        per patch of data to calculate the joint histogram.
         One for min, one for max and one for hist.
 
-        See: Normalised Mutual Information of: A normalized entropy measure of 3-D medical image alignment,
-        Studholme,  jhill & jhawkes (1998).
+        See: Normalised Mutual Information of: A normalized entropy
+        measure of 3-D medical image alignment, Studholme,  jhill &
+        jhawkes (1998).
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -1170,7 +1259,9 @@ class LargeImageMetrics(ImageMetrics):
         value_error = None
 
         try:
-            # Normalised Mutual Information of: A normalized entropy measure of 3-D medical image alignment, Studholme,  jhill & jhawkes (1998).
+            # Normalised Mutual Information of: A normalized entropy
+            # measure of 3-D medical image alignment, Studholme,
+            # jhill & jhawkes (1998).
 
             range_bin_patch_1 = [
                 da.min(patch_1).compute(),
@@ -1219,20 +1310,24 @@ class LargeImageMetrics(ImageMetrics):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Method to compute the information theoretic similarity error metric with dask.
+        Method to compute the information theoretic
+        similarity error metric with dask.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the information theoretic similarity error.
+            Float with the value of the information
+            theoretic similarity error.
         """
         pass
 
@@ -1240,22 +1335,26 @@ class LargeImageMetrics(ImageMetrics):
         self, patch_1: ArrayLike, patch_2: ArrayLike, img_max_val: float = 255
     ) -> float:
         """
-        Method to compute a the peak signal to noise ratio error metric using dask.
+        Method to compute a the peak signal to noise
+        ratio error metric using dask.
 
         See: https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the peak signal to noise ratio error.
+            Float with the value of the peak signal
+            to noise ratio error.
         """
         mse = self.mean_squared_error(patch_1, patch_2)
 
@@ -1276,30 +1375,37 @@ class LargeImageMetrics(ImageMetrics):
         T2: float = 160,
     ) -> float:
         """
-        Method to compute a the feature similarity index metric error metric using dask.
+        Method to compute a the feature similarity index
+        metric error metric using dask.
 
-        See: L. Zhang, L. Zhang, X. Mou and D. Zhang, "FSIM: A Feature Similarity Index for Image Quality Assessment,"
-        in IEEE Transactions on Image Processing, vol. 20, no. 8, pp. 2378-2386, Aug. 2011, doi: 10.1109/TIP.2011.2109730.
+        See: L. Zhang, L. Zhang, X. Mou and D. Zhang, "FSIM: A
+        Feature Similarity Index for Image Quality Assessment,"
+        in IEEE Transactions on Image Processing, vol. 20, no. 8,
+        pp. 2378-2386, Aug. 2011, doi: 10.1109/TIP.2011.2109730.
 
-        Note: Currently not computed using dask since we need to convert phasecong
-        to dask compatible if Sharmi agrees
+        Note: Currently not computed using dask since we need
+        to convert phasecong to dask compatible if Sharmi agrees
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the feature similarity index metric error.
+            Float with the value of the feature
+            similarity index metric error.
         """
 
         raise NotImplementedError(
-            "Feature similarity index metric has not been yet implemented for large images"
+            """Feature similarity index metric
+            has not been yet implemented for large images"""
         )
 
         def numerical_gradient_magnitude(
@@ -1349,17 +1455,18 @@ class LargeImageMetrics(ImageMetrics):
         patch_2 = self.recover_image_dimensionality(patch_2)
 
         # Calculating phase congruency
-        # Adding the list of size 6 in 4th position which corresponds to the phase congruency
+        # Adding the list of size 6 in 4th position
+        # which corresponds to the phase congruency
 
         # TODO Convert phasecong dask compatible if Sharmi agrees
-        # pc_pos = 4
-        # phase_congruence_patch_1 = phasecong(
-        #     patch_1, nscale=4, minWaveLength=6, mult=2, sigmaOnf=0.5978
-        # )[pc_pos]
+        pc_pos = 4
+        phase_congruence_patch_1 = phasecong(
+            patch_1, nscale=4, minWaveLength=6, mult=2, sigmaOnf=0.5978
+        )[pc_pos]
 
-        # phase_congruence_patch_2 = phasecong(
-        #     patch_2, nscale=4, minWaveLength=6, mult=2, sigmaOnf=0.5978
-        # )[pc_pos]
+        phase_congruence_patch_2 = phasecong(
+            patch_2, nscale=4, minWaveLength=6, mult=2, sigmaOnf=0.5978
+        )[pc_pos]
 
         # Sum phase congruencies per orientation
         phase_congruence_patch_1_sum = np.sum(
@@ -1369,7 +1476,8 @@ class LargeImageMetrics(ImageMetrics):
             phase_congruence_patch_2, axis=0, dtype=self.dtype
         )
 
-        # Getting edges by grandient magnitude - Using Scharr by default as suggested by authors
+        # Getting edges by grandient magnitude
+        # Using Scharr by default as suggested by authors
         gradient_magnitude_patch_1 = numerical_gradient_magnitude(patch_1)
         gradient_magnitude_patch_2 = numerical_gradient_magnitude(patch_2)
 
@@ -1437,7 +1545,8 @@ class SmallImageMetrics(ImageMetrics):
             Acronym of the metric that will be computed
 
         window_size: int
-            Window size (horizontal and vertical) of the patch extracted from the images based
+            Window size (horizontal and vertical) of the
+            patch extracted from the images based
             on a point located in the same coordinate system
 
             |---- (window_size * 2) + 1 ----|
@@ -1511,10 +1620,12 @@ class SmallImageMetrics(ImageMetrics):
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -1529,15 +1640,18 @@ class SmallImageMetrics(ImageMetrics):
         self, patch_1: np.ndarray, patch_2: np.ndarray
     ) -> float:
         """
-        Method to compute the structural similarity index error metric using skimage.
+        Method to compute the structural similarity
+        index error metric using skimage.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -1553,15 +1667,18 @@ class SmallImageMetrics(ImageMetrics):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Method to compute the mean absolue error metric using numpy.
+        Method to compute the mean absolue error
+        metric using numpy.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -1574,15 +1691,18 @@ class SmallImageMetrics(ImageMetrics):
         self, patch_1: da.core.Array, patch_2: da.core.Array
     ) -> float:
         """
-        Method to compute the r2 score error metric using sklearn.
+        Method to compute the r2 score error
+        metric using sklearn.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -1598,10 +1718,12 @@ class SmallImageMetrics(ImageMetrics):
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -1614,20 +1736,24 @@ class SmallImageMetrics(ImageMetrics):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Method to compute the normalized cross correlation error metric using numpy.
+        Method to compute the normalized cross
+        correlation error metric using numpy.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the normalized cross correlation error.
+            Float with the value of the normalized
+            cross correlation error.
         """
 
         if patch_1.ndim != 1:
@@ -1664,21 +1790,26 @@ class SmallImageMetrics(ImageMetrics):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Method to compute the normalized cross correlation error metric based on ITK snap implementation using numpy.
-        See detailed description in https://itk.org/Doxygen/html/classitk_1_1CorrelationImageToImageMetricv4.html
+        Method to compute the normalized cross correlation error
+        metric based on ITK snap implementation using numpy.
+        See detailed description in
+        https://itk.org/Doxygen/html/classitk_1_1CorrelationImageToImageMetricv4.html
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the normalized cross correlation error.
+            Float with the value of the normalized
+            cross correlation error.
         """
 
         if patch_1.ndim != 1:
@@ -1718,10 +1849,12 @@ class SmallImageMetrics(ImageMetrics):
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -1754,16 +1887,19 @@ class SmallImageMetrics(ImageMetrics):
         Method to compute the mutual information error metric using numpy.
         Note: Check the used dtype to reach a higher precision in the metric
 
-        See: Normalised Mutual Information of: A normalized entropy measure of 3-D medical image alignment,
+        See: Normalised Mutual Information of: A normalized entropy
+        measure of 3-D medical image alignment,
         Studholme,  jhill & jhawkes (1998).
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
@@ -1798,27 +1934,33 @@ class SmallImageMetrics(ImageMetrics):
         self, patch_1: ArrayLike, patch_2: ArrayLike
     ) -> float:
         """
-        Method to compute the information theoretic similarity error metric with numpy as cv2.
-        It is assumed that the e term refers to euler number from the paper.
+        Method to compute the information theoretic similarity
+        error metric with numpy as cv2. It is assumed that the e
+        term refers to euler number from the paper.
         Based on https://github.com/up42/image-similarity-measures package
 
 
-        Mohammed Abdulameer Aljanabi, Zahir M. Hussain, Noor Abd Alrazak Shnain & Song Feng Lu (2019)
-        Design of a hybrid measure for image similarity: a statistical, algebraic, and information-theoretic approach,
-        European Journal of Remote Sensing, 52:sup4, 2-15, DOI: 10.1080/22797254.2019.1628617
+        Mohammed Abdulameer Aljanabi, Zahir M. Hussain, Noor Abd
+        Alrazak Shnain & Song Feng Lu (2019) Design of a hybrid measure
+        for image similarity: a statistical, algebraic,
+        and information-theoretic approach, European Journal of Remote
+        Sensing, 52:sup4, 2-15, DOI: 10.1080/22797254.2019.1628617
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the information theoretic similarity error.
+            Float with the value of the information
+            theoretic similarity error.
         """
 
         def _ehs(x: np.ndarray, y: np.ndarray):
@@ -1834,7 +1976,9 @@ class SmallImageMetrics(ImageMetrics):
             """
 
             # Adding thresholding to better find edges
-            # high_thresh, thresh_im = cv2.threshold(x, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            # high_thresh, thresh_im = cv2.threshold(
+            # x, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+            # )
             # lowThresh = 0.5*high_thresh
 
             balance = 1.0  # 0.0625
@@ -1853,7 +1997,8 @@ class SmallImageMetrics(ImageMetrics):
 
             numerator = np.sum((g - g0) * (h - h0))
 
-            # Denominator is close to 0 when there are no features that has edges in the image
+            # Denominator is close to 0 when there are
+            # no features that has edges in the image
             denominator = np.sqrt(
                 np.sum(np.square(g - g0)) * np.sum(np.square(h - h0))
             )
@@ -1881,22 +2026,26 @@ class SmallImageMetrics(ImageMetrics):
         self, patch_1: ArrayLike, patch_2: ArrayLike, img_max_val: float = 255
     ) -> float:
         """
-        Method to compute a the peak signal to noise ratio error metric using numpy.
+        Method to compute a the peak signal to noise ratio
+        error metric using numpy.
 
         See: https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the peak signal to noise ratio error.
+            Float with the value of the peak signal
+            to noise ratio error.
         """
         mse = self.mean_squared_error(patch_1, patch_2)
         psnr = 20 * np.log10(
@@ -1913,23 +2062,29 @@ class SmallImageMetrics(ImageMetrics):
         T2: float = 160,
     ) -> float:
         """
-        Method to compute a the feature similarity index metric error metric using numpy and cv2.
+        Method to compute a the feature similarity index metric
+        error metric using numpy and cv2.
 
-        See: L. Zhang, L. Zhang, X. Mou and D. Zhang, "FSIM: A Feature Similarity Index for Image Quality Assessment,"
-        in IEEE Transactions on Image Processing, vol. 20, no. 8, pp. 2378-2386, Aug. 2011, doi: 10.1109/TIP.2011.2109730.
+        See: L. Zhang, L. Zhang, X. Mou and D. Zhang, "FSIM: A Feature
+        Similarity Index for Image Quality Assessment," in IEEE Transactions
+        on Image Processing, vol. 20, no. 8, pp. 2378-2386, Aug. 2011,
+        doi: 10.1109/TIP.2011.2109730.
 
         Parameters
         ------------------------
         patch_1: ArrayLike
-            2D/3D patch of extracted from the image 1 and based on a windowed point.
+            2D/3D patch of extracted from the image 1
+            and based on a windowed point.
 
         patch_2: ArrayLike
-            2D/3D patch of extracted from the image 2 and based on a windowed point.
+            2D/3D patch of extracted from the image 2
+            and based on a windowed point.
 
         Returns
         ------------------------
         float
-            Float with the value of the feature similarity index metric error.
+            Float with the value of the feature similarity
+            index metric error.
         """
 
         def numerical_gradient_magnitude(
@@ -1975,7 +2130,8 @@ class SmallImageMetrics(ImageMetrics):
         patch_2 = self.recover_image_dimensionality(patch_2)
 
         # Calculating phase congruency
-        # Adding the list of size 6 in 4th position which corresponds to the phase congruency
+        # Adding the list of size 6 in 4th position
+        # which corresponds to the phase congruency
 
         pc_pos = 4
         phase_congruence_patch_1 = phasecong(
@@ -1994,7 +2150,8 @@ class SmallImageMetrics(ImageMetrics):
             phase_congruence_patch_2, axis=0, dtype=self.dtype
         )
 
-        # Getting edges by grandient magnitude - Using Scharr by default as suggested by authors
+        # Getting edges by grandient magnitude
+        # Using Scharr by default as suggested by authors
         gradient_magnitude_patch_1 = numerical_gradient_magnitude(patch_1)
         gradient_magnitude_patch_2 = numerical_gradient_magnitude(patch_2)
 
@@ -2063,7 +2220,8 @@ class ImageMetricsFactory:
         """
         Method to create the image reader depending on the type of image:
         - large: Metrics will be computed using dask.
-        - small: Metrics will be computed using numpy, sklearn, scipy or cv2 where it's needed.
+        - small: Metrics will be computed using numpy,
+          sklearn, scipy or cv2 where it's needed.
 
         Parameters
         ------------------------
@@ -2076,7 +2234,8 @@ class ImageMetricsFactory:
         Returns
         ------------------------
         ImageMetrics
-            Class that contains the image metrics to be computed depending on the type of image.
+            Class that contains the image metrics to be computed
+            depending on the type of image.
             - large: LargeImageMetrics class
             - small: SmallImageMetrics class
         """

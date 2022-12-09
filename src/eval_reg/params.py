@@ -27,7 +27,7 @@ class InputImage(fields.Str):
 
         if sys.platform == "win32":
             try:
-                x = list(os.scandir(value))
+                list(os.scandir(value))
             except PermissionError:
                 raise mm.ValidationError(
                     "%s is not a readable directory" % value
@@ -82,7 +82,11 @@ class EvalRegSchema(ArgSchema):
     data_type = Str(
         required=True,
         metadata={
-            "description": "Type of data: dummy (dummy_2D, dummy_3D), small (Read into memory), large (not loaded in memory)"
+            "description": """
+            Type of data: dummy (dummy_2D, dummy_3D),
+            small (Read into memory),
+            large (not loaded in memory)
+            """
         },
         dump_default="small",
     )
@@ -104,7 +108,8 @@ class EvalRegSchema(ArgSchema):
     image_channel = Int(
         required=False,
         metadata={
-            "description": "Integer that indicates the channel that will be processed"
+            "description": """Integer that indicates the
+            channel that will be processed"""
         },
         dump_default=0,
     )

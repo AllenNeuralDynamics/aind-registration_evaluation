@@ -11,18 +11,21 @@ ArrayLike = Union[da.Array, np.array]
 
 def get_multiplicatives_2D(num_points: int) -> Tuple[int]:
     """
-    Gets middle multiplicative divisors of a set of points. Helper function used to build the grid of points.
+    Gets middle multiplicative divisors of a set of points.
+    Helper function used to build the grid of points.
 
     Parameters
     ------------------------
 
     num_points: int
-        Number of points that will be sampled in the intersection image as a grid.
+        Number of points that will be sampled in the
+        intersection image as a grid.
 
     Returns
     ------------------------
     Tuple:
-        Middle multiplicative divisors of the set of points to be displayed as a grid.
+        Middle multiplicative divisors of the set of
+        points to be displayed as a grid.
     """
     divs = []
 
@@ -40,16 +43,19 @@ def check_image_intersection_2D(
     bounds_1: np.ndarray, bounds_2: np.ndarray
 ) -> bool:
     """
-    Checks if the provided boundaries share an area of intersection
+    Checks if the provided boundaries share an
+    area of intersection
 
     Parameters
     ------------------------
 
     bounds_1: np.ndarray
-        Array with the position of the boundaries within image 1 in order X, Y.
+        Array with the position of the boundaries
+        within image 1 in order X, Y.
 
     bounds_2: np.ndarray
-        Array with the position of the boundaries within image 2 in order X, Y.
+        Array with the position of the boundaries
+        within image 2 in order X, Y.
 
     Returns
     ------------------------
@@ -84,10 +90,12 @@ def check_image_intersection_3D(
     ------------------------
 
     bounds_1: np.ndarray
-        Array with the position of the boundaries within image 1 in order X, Y, Z.
+        Array with the position of the boundaries
+        within image 1 in order X, Y, Z.
 
     bounds_2: np.ndarray
-        Array with the position of the boundaries within image 2 in order X, Y, Z.
+        Array with the position of the boundaries
+        within image 2 in order X, Y, Z.
 
     Returns
     ------------------------
@@ -125,11 +133,13 @@ def sample_points_in_overlap(
     ------------------------
 
     bounds_1: np.ndarray
-        Image 1 calculated boundaries in each dimension, each position could be (x, y) or (x, y, z)
+        Image 1 calculated boundaries in each dimension,
+        each position could be (x, y) or (x, y, z)
         depending on the image dimensionality.
 
     bounds_2: np.ndarray
-        Image 2 calculated boundaries in each dimension, each position could be (x, y) or (x, y, z)
+        Image 2 calculated boundaries in each dimension,
+        each position could be (x, y) or (x, y, z)
         depending on the image dimensionality.
 
     numpoints: int
@@ -160,14 +170,16 @@ def sample_points_in_overlap(
         bounds_1, bounds_2
     ):
         raise ValueError(
-            "2D Images do not intersect. Please, check the transformation matrix."
+            """2D Images do not intersect. Please,
+            check the transformation matrix."""
         )
 
     elif len(bounds_1) == 3 and not check_image_intersection_3D(
         bounds_1, bounds_2
     ):
         raise ValueError(
-            "3D Images do not intersect. Please, check the transformation matrix."
+            """3D Images do not intersect. Please,
+            check the transformation matrix."""
         )
 
     n_dims = len(bounds_1[0])
@@ -238,11 +250,12 @@ def calculate_bounds(
     Parameters
     ------------------------
     image_1: Tuple
-        First image which will be used as default in the coordinate system
+        First image which will be used as default
+        in the coordinate system
 
     image_2: Tuple
-        Second image which will be used to map it's position to a common coordinate system
-        based on image_1
+        Second image which will be used to map it's
+        position to a common coordinate system based on image_1
 
     transform: np.ndarray
         Transformation matrix applied over the two images
@@ -281,7 +294,8 @@ def prune_points_to_fit_window(
     image_shape: Tuple, points: np.array, window_size: int
 ) -> np.array:
     """
-    Checks if generated points can be used for metric evaluation in the specified window size
+    Checks if generated points can be used for metric
+    evaluation in the specified window size
     given a set of points and an image shape.
 
     Parameters
@@ -290,7 +304,8 @@ def prune_points_to_fit_window(
         Image shape
 
     points: np.array
-        Sample points in an overlap region given two images using a transformation matrix
+        Sample points in an overlap region given two
+        images using a transformation matrix
 
     window_size: int
         Window size applied over each axis
@@ -298,7 +313,8 @@ def prune_points_to_fit_window(
     Returns
     ------------------------
     np.array:
-        Array with the points that fit the window size inside image shape.
+        Array with the points that fit the window
+        size inside image shape.
 
     """
 
@@ -314,8 +330,8 @@ def prune_points_to_fit_window(
         Returns
         ------------------------
         bool:
-            True if the (point (x, y) + window size) is inside image shape,
-            False otherwise.
+            True if the (point (x, y) + window size)
+            is inside image shape, False otherwise.
         """
         modified_point = nested_point + window_size
         point_window_inside = np.less(modified_point, image_shape)
@@ -335,7 +351,8 @@ def extract_data(
     arr: ArrayLike, last_dimensions: Optional[int] = None
 ) -> ArrayLike:
     """
-    Extracts n dimensional data (numpy array or dask array) given expanded dimensions.
+    Extracts n dimensional data (numpy array or dask array)
+    given expanded dimensions.
     e.g., (1, 1, 1, 1600, 2000) -> (1600, 2000)
     e.g., (1, 1600, 2000) -> (1600, 2000)
     e.g., (1, 1, 2, 1600, 2000) -> (2, 1600, 2000)
@@ -343,11 +360,13 @@ def extract_data(
     Parameters
     ------------------------
     arr: ArrayLike
-        Numpy or dask array with image data. It is assumed that the last dimensions
-        of the array contain the information about the image.
+        Numpy or dask array with image data. It is assumed
+        that the last dimensions of the array contain
+        the information about the image.
 
     last_dimensions: Optional[int]
-        If given, it selects the number of dimensions given stating from the end
+        If given, it selects the number of dimensions given
+        stating from the end
         of the array
         e.g., arr=(1, 1, 1600, 2000) last_dimensions=3 -> (1, 1600, 2000)
         e.g., arr=(1, 1, 1600, 2000) last_dimensions=1 -> (2000)
@@ -355,7 +374,8 @@ def extract_data(
     Raises
     ------------------------
     ValueError:
-        Whenever the last dimensions value is higher than the array dimensions.
+        Whenever the last dimensions value is higher
+        than the array dimensions.
 
     Returns
     ------------------------
@@ -496,7 +516,8 @@ def visualize_images(
 ) -> None:
 
     """
-    Function that plots an image to help visualize the intersection area, sampled points and images.
+    Function that plots an image to help visualize the
+    intersection area, sampled points and images.
 
     Parameters
     ------------------------
@@ -549,7 +570,8 @@ def visualize_images(
         y_points = [point[0] for point in pruned_points]
         x_points = [point[1] for point in pruned_points]
 
-        # Setting X,Y positions of points within the grid that were used to metric estimation
+        # Setting X,Y positions of points within the
+        # grid that were used to metric estimation
         selected_y_points = [point[0] for point in selected_pruned_points]
         selected_x_points = [point[1] for point in selected_pruned_points]
 
@@ -614,7 +636,8 @@ def visualize_images(
         y_points = [point[1] for point in pruned_points]
         x_points = [point[2] for point in pruned_points]
 
-        # Setting Z,Y,X positions of points within the grid that were used to metric estimation
+        # Setting Z,Y,X positions of points within the grid
+        # that were used to metric estimation
         selected_z_points = [point[0] for point in selected_pruned_points]
         selected_y_points = [point[1] for point in selected_pruned_points]
         selected_x_points = [point[2] for point in selected_pruned_points]

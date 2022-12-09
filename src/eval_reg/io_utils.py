@@ -389,8 +389,9 @@ def create_sample_data_2D(
     Returns
     ------------------------
     List:
-        List where the first two positions correspond to image 1 and 2 respectively and
-        the last position correspond to the transformation matrix.
+        List where the first two positions correspond to
+        image 1 and 2 respectively and the last position
+        correspond to the transformation matrix.
     """
 
     def value_func_3d(x, y):
@@ -429,8 +430,9 @@ def create_sample_data_3D(
     Returns
     ------------------------
     List:
-        List where the first two positions correspond to image 1 and 2 respectively and
-        the last position correspond to the transformation matrix.
+        List where the first two positions correspond to
+        image 1 and 2 respectively and the last position
+        correspond to the transformation matrix.
     """
 
     def value_func_3d(x, y, z):
@@ -469,13 +471,15 @@ def get_data(
         Path to image 2.
 
     data_type: str
-        If we are creating sample data for testing purposes or processing real data
+        If we are creating sample data for testing
+        purposes or processing real data
 
     Returns
     ------------------------
     List:
-        List where the first two positions correspond to image 1 and 2 respectively and
-        the last position correspond to the transformation matrix.
+        List where the first two positions correspond to
+        image 1 and 2 respectively and the last position
+        correspond to the transformation matrix.
     """
     if data_type == "dummy_2D":
         return create_sample_data_2D()
@@ -484,7 +488,8 @@ def get_data(
         return create_sample_data_3D()
 
     else:
-        # real data leaving the choice to the reader factory in how to load the image
+        # real data leaving the choice to the reader
+        # factory in how to load the image
         loaded_img_1 = ImageReaderFactory().create(path_image_1)
         loaded_img_2 = ImageReaderFactory().create(path_image_2)
 
