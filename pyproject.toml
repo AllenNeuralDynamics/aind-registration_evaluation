@@ -18,7 +18,14 @@ dependencies = [
     'aicsimageio',
     'argschema',
     'scikit-image',
-    'ome-zarr'
+    'ome-zarr',
+    'argschema',
+    'matplotlib',
+    'numpy',
+    'zarr',
+    'scikit-learn',
+    'pims',
+    'tifffile'
 ]
 
 [project.optional-dependencies]

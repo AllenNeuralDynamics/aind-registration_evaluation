@@ -1,51 +1,42 @@
 """ Evaluate stitching of large scale data.
 """
+import logging
+import os
+from pathlib import Path
+from typing import Union
 
-from argschema import ArgSchemaParser, ArgSchema
-from argschema.fields import Str , Int, Nested
-import random
+import io_utils
 import numpy as np
-import metrics
-import iotools
 import utils
+import yaml
+from argschema import ArgSchemaParser
 
-example_input = {
-    "image1": "gs://aind-msma-data/SmartSPIM_617052_2022_07_19_19-22-33/OME_Zarr_tiles/Ex_488_Em_525_468770_468770_830620_012820.zarr"
-    "image2": "gs://aind-msma-data/SmartSPIM_617052_2022_07_19_19-22-33/OME_Zarr_tiles/Ex_488_Em_525_468770_468770_856540_012820.zarr"
-    "transform": "transform.json",
-    "channel": 1,
-    "datatype": "dummy",
-    #"datatype": "large",
-    "metric": "SSD",
-    "windowsize": 2,
-    "samplinginfo": { "type": "random", "numpoints": 200}
-}
+from .metrics import ImageMetricsFactory
+from .params import EvalRegSchema
 
-class SamplingArgsSchema(ArgSchema):
-    """
-    Nested schema for sampling args.
-    """
+# IO types
+PathLike = Union[str, Path]
 
-    type = Str(metadata={"required":False, "description":"Type of "})
-    numpoints = Int(metadata={"required":False, "description":"Number of points to sample"})
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s : %(message)s",
+    datefmt="%Y-%m-%d %H:%M",
+    handlers=[
+        logging.StreamHandler(),
+        # logging.FileHandler("test.log", "a"),
+    ],
+)
+logging.disable("DEBUG")
 
-class EvalRegSchema(ArgSchema):
-    """
-    Schema format for Evaluate Stitching.
-    """
-    image1 = Str(metadata={"required":True, "description":"Image 1 location"})
-    image2 = Str(metadata={"required":True, "description":"Image 2 location"})
-    transform = Str(metadata={"required":True, "description":"json with transformation relating Images 1 and 2"})
-    datatype = Str(metadata={"required":True, "description":"Type of data: Dummy, Small (Read into memory), Large (not loaded in memory)"})
-    metric = Str(metadata={"required":True, "description":"SSD / NCC"})
-    windowsize = Int(metadata={"required":True, "description":"Size of window across which to calculate metric"})
-    channel = Int(metadata={"required":False, "description":"which channel to process"})
-    samplinginfo = Nested(SamplingArgsSchema,required=False,default={},description='schema for sampling points')
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
 
-class EvalStitching (ArgSchemaParser):
+
+class EvalStitching(ArgSchemaParser):
     """
     Class to Evaluate Stitching.
     """
+
     default_schema = EvalRegSchema
 
     def run(self):
@@ -54,32 +45,160 @@ class EvalStitching (ArgSchemaParser):
             Evaluate block
         """
 
-        #read data/pointers and linear transform 
-        data = iotools.get_data(self.args)
-        print("Got data: ", data[0].shape, data[1].shape, data[2])
-        
+        image_1_data = None
+        image_2_data = None
 
-        #calculate extent of overlap using transforms in common coordinate system (assume for image 1)
-        bounds1,bounds2 = utils.calculate_bounds(data, self.args)
-        print(bounds1)
+        # read data/pointers and linear transform
+        image_1, image_2, transform = io_utils.get_data(
+            path_image_1=self.args["image_1"],
+            path_image_2=self.args["image_2"],
+            data_type=self.args["data_type"],
+        )
 
-        #Sample points in overlapping bounds
-        pts = utils.sample_points_in_overlap(bounds1, bounds2,self.args['samplinginfo'])
-        pruned_pts = utils.prune_points_to_fit_window(pts, self.args['windowsize'], data, self.args)
-        print(len(pruned_pts))
+        if self.args["data_type"] == "large":
+            # Load dask array
+            image_1_data = utils.extract_data(image_1.as_dask_array())
+            image_2_data = utils.extract_data(image_2.as_dask_array())
 
-        #calculate metrics
-        M = []
-        for pt in pruned_pts:
-            met = metrics.calculate_metrics(pt, data,self.args)
-            if met is not None:
-                M.append(met)
-            
-        
-        #compute statistics
-        print("Mean : ", np.mean(M), " ,std: ", np.std(M), "number of points: ", len(M))
+        elif self.args["data_type"] == "small":
+            image_1_data = utils.extract_data(image_1.as_numpy_array())
+            image_2_data = utils.extract_data(image_2.as_numpy_array())
 
-        
-if __name__ == '__main__':
-    mod = EvalStitching(example_input)
+        elif "dummy" in self.args["data_type"]:
+            image_1_data = image_1
+            image_2_data = image_2
+
+        image_1_shape = image_1_data.shape
+        image_2_shape = image_2_data.shape
+
+        # calculate extent of overlap using transforms
+        # in common coordinate system (assume for image 1)
+        bounds_1, bounds_2 = utils.calculate_bounds(
+            image_1_shape, image_2_shape, transform
+        )
+
+        # #Sample points in overlapping bounds
+        points = utils.sample_points_in_overlap(
+            bounds_1=bounds_1,
+            bounds_2=bounds_2,
+            numpoints=self.args["sampling_info"]["numpoints"],
+            sample_type=self.args["sampling_info"]["sampling_type"],
+            image_shape=image_1_shape,
+        )
+
+        # print("Points: ", points)
+
+        # Points that fit in window based on a window size
+        pruned_points = utils.prune_points_to_fit_window(
+            image_1_shape, points, self.args["window_size"]
+        )
+
+        discarded_points_window = points.shape[0] - pruned_points.shape[0]
+        LOGGER.info(
+            f"""Number of discarded points when prunning
+            points to window: {discarded_points_window}""",
+        )
+
+        # calculate metrics per images
+        metric_per_point = []
+
+        metric_calculator = ImageMetricsFactory().create(
+            image_1_data,
+            image_2_data,
+            self.args["metric"],
+            self.args["window_size"],
+        )
+
+        selected_pruned_points = []
+
+        for pruned_point in pruned_points:
+
+            met = metric_calculator.calculate_metrics(
+                point=pruned_point, transform=transform
+            )
+
+            if met:
+                selected_pruned_points.append(pruned_point)
+                metric_per_point.append(met)
+
+        # compute statistics
+        metric = self.args["metric"]
+        computed_points = len(metric_per_point)
+
+        dscrd_pts = points.shape[0] - discarded_points_window - computed_points
+        message = f"""Computed metric: {metric}
+        \nMean: {np.mean(metric_per_point)}
+        \nStd: {np.std(metric_per_point)}
+        \nNumber of calculated points: {computed_points}
+        \nDiscarded points by metric: {dscrd_pts}"""
+        LOGGER.info(message)
+
+        utils.visualize_images(
+            image_1_data,
+            image_2_data,
+            [bounds_1, bounds_2],
+            pruned_points,
+            selected_pruned_points,
+        )
+
+
+def get_default_config(filename: PathLike = None):
+    """
+    Gets the default configuration for the package.
+
+    Parameters
+    ------------------------
+    filename: str
+        command name to check the installation. Default: 'terastitcher'
+
+    Returns
+    ------------------------
+    bool:
+        True if the command was correctly executed, False otherwise.
+
+    """
+
+    if filename is None:
+        filename = Path(os.path.dirname(__file__)).joinpath(
+            "default_config.yaml"
+        )
+
+    config = None
+    try:
+        with open(filename, "r") as stream:
+            config = yaml.safe_load(stream)
+    except Exception as error:
+        raise error
+
+    return config
+
+
+def main():
+    """ """
+    # Get same configuration from yaml file to apply it over a dataset
+    default_config = get_default_config()
+
+    BASE_PATH = "/Users/camilo.laiton/Documents/images/"
+
+    default_config["image_1"] = (
+        BASE_PATH + "Ex_488_Em_525_468770_468770_830620_012820.zarr"
+    )
+    default_config["image_2"] = (
+        BASE_PATH + "Ex_488_Em_525_501170_501170_830620_012820.zarr"
+    )
+
+    # default_config["image_1"] = BASE_PATH + "block_10.tif"
+    # default_config["image_2"] = BASE_PATH + "block_10.tif"
+
+    import time
+
+    mod = EvalStitching(default_config)
+
+    time_start = time.time()
     mod.run()
+    time_end = time.time()
+    print(f"Time: {time_end-time_start}")
+
+
+if __name__ == "__main__":
+    main()
