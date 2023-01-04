@@ -174,7 +174,9 @@ def get_default_config(filename: PathLike = None):
 
 
 def main():
-    """ """
+    """
+    Main function to test the evaluation performance
+    """
     # Get same configuration from yaml file to apply it over a dataset
     default_config = get_default_config()
 

@@ -1,3 +1,7 @@
+"""
+Module for Input/output utility functions
+"""
+
 import os
 from abc import ABC, abstractmethod, abstractproperty
 from pathlib import Path
@@ -35,6 +39,11 @@ def add_leading_dim(data: ArrayLike):
 
 
 class ImageReader(ABC):
+    """
+    Abstract class to create image readers
+    classes
+    """
+
     def __init__(self, data_path: PathLike) -> None:
         """
         Class constructor of image reader.
@@ -143,6 +152,10 @@ class ImageReader(ABC):
 
 
 class OMEZarrReader(ImageReader):
+    """
+    OMEZarr reader class
+    """
+
     def __init__(
         self, data_path: PathLike, multiscale: Optional[int] = 0
     ) -> None:
@@ -230,6 +243,10 @@ class OMEZarrReader(ImageReader):
 
 
 class TiffReader(ImageReader):
+    """
+    TiffReader class
+    """
+
     def __init__(self, data_path: PathLike) -> None:
         """
         Class constructor of image Tiff reader.
@@ -327,6 +344,10 @@ class TiffReader(ImageReader):
 
 
 class ImageReaderFactory:
+    """
+    Image reader factory class
+    """
+
     def __init__(self):
         """
         Class to create the image reader factory.
@@ -395,6 +416,7 @@ def create_sample_data_2D(
     """
 
     def value_func_3d(x, y):
+        """values for xy grid"""
         return 1 * x + 1 * y
 
     x = np.linspace(0, 499, 500)
@@ -436,6 +458,7 @@ def create_sample_data_3D(
     """
 
     def value_func_3d(x, y, z):
+        """values for xyz grid"""
         return 1 * x + 1 * y - z
 
     x = np.linspace(0, 499, 500)

@@ -1,4 +1,4 @@
-""" Modules to calculate Metrics between features
+""" Module to calculate Metrics between features
 """
 
 import math
@@ -22,6 +22,11 @@ ArrayLike = Union[da.core.Array, np.ndarray]
 
 
 class ImageMetrics(ABC):
+    """
+    Abstract class to calculate a metric in
+    a pair of images
+    """
+
     def __init__(
         self,
         image_1: ArrayLike,
@@ -736,6 +741,10 @@ class ImageMetrics(ABC):
 
 # We're working with dask for large images
 class LargeImageMetrics(ImageMetrics):
+    """
+    Class for calculating a metric on large images
+    """
+
     def __init__(
         self,
         image_1: ImageReader,
@@ -1413,6 +1422,21 @@ class LargeImageMetrics(ImageMetrics):
             image_depth: Type = cv2.CV_16U,
             method: str = "scharr",
         ):
+            """
+            Computes the gradient magnitude for an image
+
+            Parameters
+            -------------
+            patched_image: ArrayLike
+                Patch of an image
+
+            image_depth: Type
+                Image depth. Default: 16 bit
+
+            Method: str
+                Method to compute the gradient magnitude
+                Default: scharr
+            """
 
             if method == "sobel":
                 gradient_magnitude_function = cv2.Sobel
@@ -1436,14 +1460,34 @@ class LargeImageMetrics(ImageMetrics):
                 dtype=self.dtype,
             )
 
-            return da.sqrt(x_gradient**2 + y_gradient**2, dtype=self.dtype)
+            return da.sqrt(x_gradient ** 2 + y_gradient ** 2, dtype=self.dtype)
 
         def numerical_similarity_measure(
             patch_1: ArrayLike, patch_2: ArrayLike, C: float
         ):
+            """
+            Computes the numerical similarity measure
+
+            Parameters
+            --------------
+            patch_1: ArrayLike
+                Patch from image 1
+
+            patch_2: ArrayLike
+                Patch from image 2
+
+            C: float
+                Constant value
+
+            Returns
+            --------------
+            float
+                Computed value for the similarity
+                measure
+            """
 
             numerator = 2 * patch_1 * patch_2 + C
-            denominator = patch_1**2 + patch_2**2 + C
+            denominator = patch_1 ** 2 + patch_2 ** 2 + C
 
             return numerator / denominator
 
@@ -1489,7 +1533,7 @@ class LargeImageMetrics(ImageMetrics):
         )
 
         # Following formula described in the paper
-        S_l = (S_phase_congruency**alpha) * (S_gradient_magnitude**beta)
+        S_l = (S_phase_congruency ** alpha) * (S_gradient_magnitude ** beta)
 
         numerator = da.sum(
             S_l
@@ -1523,6 +1567,10 @@ class LargeImageMetrics(ImageMetrics):
 
 
 class SmallImageMetrics(ImageMetrics):
+    """
+    Class for calculating a metric on small images
+    """
+
     def __init__(
         self,
         image_1: ImageReader,
@@ -1573,6 +1621,26 @@ class SmallImageMetrics(ImageMetrics):
     def get_patches(
         self, windowed_points: np.ndarray, transform: np.matrix
     ) -> Tuple[np.ndarray]:
+        """
+        Method to get patches from the images using numpy.
+
+        Parameters
+        ------------------------
+        windowed_points: np.array
+            Points that are inside of the intersection
+            area. These do not go out from the area
+            using the window size.
+
+        transform: np.matrix
+            Transformation matrix that will be
+            applied to get the patches
+
+        Returns
+        ------------------------
+        Tuple[ArrayLike]
+            Tuple with the patches.
+
+        """
 
         point_1_windowed = windowed_points[0]
         point_2_windowed = windowed_points[1]
@@ -2092,6 +2160,21 @@ class SmallImageMetrics(ImageMetrics):
             image_depth: Type = cv2.CV_16U,
             method: str = "scharr",
         ):
+            """
+            Computes the gradient magnitude for an image
+
+            Parameters
+            -------------
+            patched_image: ArrayLike
+                Patch of an image
+
+            image_depth: Type
+                Image depth. Default: 16 bit
+
+            Method: str
+                Method to compute the gradient magnitude
+                Default: scharr
+            """
 
             if method == "sobel":
                 gradient_magnitude_function = cv2.Sobel
@@ -2111,14 +2194,34 @@ class SmallImageMetrics(ImageMetrics):
                 patched_image, image_depth, 0, 1
             )
 
-            return np.sqrt(x_gradient**2 + y_gradient**2, dtype=self.dtype)
+            return np.sqrt(x_gradient ** 2 + y_gradient ** 2, dtype=self.dtype)
 
         def numerical_similarity_measure(
             patch_1: ArrayLike, patch_2: ArrayLike, C: float
-        ):
+        ) -> float:
+            """
+            Computes the numerical similarity measure
+
+            Parameters
+            --------------
+            patch_1: ArrayLike
+                Patch from image 1
+
+            patch_2: ArrayLike
+                Patch from image 2
+
+            C: float
+                Constant value
+
+            Returns
+            --------------
+            float
+                Computed value for the similarity
+                measure
+            """
 
             numerator = 2 * patch_1 * patch_2 + C
-            denominator = patch_1**2 + patch_2**2 + C
+            denominator = patch_1 ** 2 + patch_2 ** 2 + C
 
             return numerator / denominator
 
@@ -2163,7 +2266,7 @@ class SmallImageMetrics(ImageMetrics):
         )
 
         # Following formula described in the paper
-        S_l = (S_phase_congruency**alpha) * (S_gradient_magnitude**beta)
+        S_l = (S_phase_congruency ** alpha) * (S_gradient_magnitude ** beta)
 
         numerator = np.sum(
             S_l
@@ -2186,6 +2289,10 @@ class SmallImageMetrics(ImageMetrics):
 
 
 class ImageMetricsFactory:
+    """
+    Class image metrics factory
+    """
+
     def __init__(self):
         """
         Class constructor of image metrics factory.

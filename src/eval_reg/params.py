@@ -1,3 +1,7 @@
+"""
+Module for setting parameters in the package
+"""
+
 import os
 import sys
 

@@ -1,4 +1,6 @@
-# import this
+"""
+Module for utility functions
+"""
 from typing import List, Optional, Tuple, Union
 
 import dask.array as da
@@ -402,6 +404,10 @@ def extract_data(
 
 
 class SliceTracker:
+    """
+    Slice Tracker class to visualize 3D images
+    """
+
     def __init__(
         self,
         fig_axes,
@@ -415,6 +421,9 @@ class SliceTracker:
         alpha=0.7,
         color="bone",
     ) -> None:
+        """
+        Class constructor
+        """
         self.axes = fig_axes
         self.image_1_data = image_1_data
         self.image_2_data = image_2_data
@@ -438,7 +447,15 @@ class SliceTracker:
         self.update_slice()
 
     def search_points_in_slice(self):
+        """
+        Searches for points in a slice
+        """
+
         def search_points(points: List):
+            """
+            Helper function to search points
+            in a slic
+            """
 
             points_x = []
             points_y = []
@@ -456,7 +473,9 @@ class SliceTracker:
         return [points_x, points_y], [sel_points_x, sel_points_y]
 
     def on_scroll(self, event):
-        # print("%s %s" % (event.button, event.step))
+        """
+        Event to scroll in the image volume
+        """
         if event.button == "up":
             self.idx = (self.idx + 1) % self.__slices
         else:
@@ -464,7 +483,10 @@ class SliceTracker:
         self.update_slice()
 
     def update_slice(self):
-        # self.axes.clear()
+        """
+        Updates the current slice based on
+        the scroll
+        """
 
         self.update_points()
         self.get_current_slice()
@@ -473,6 +495,10 @@ class SliceTracker:
         self.axes.figure.canvas.draw()
 
     def update_points(self):
+        """
+        Updates the points in a slice based on
+        the scroll
+        """
         pts, sl_pts = self.search_points_in_slice()
 
         if self.points_1 and self.points_2:
@@ -485,7 +511,10 @@ class SliceTracker:
         )
 
     def get_current_slice(self):
-
+        """
+        Gets the current slice and shows it
+        in the renderer
+        """
         if self.plot_image_1 and self.plot_image_2:
             self.plot_image_1.remove()
             self.plot_image_2.remove()
