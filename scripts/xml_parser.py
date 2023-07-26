@@ -2,9 +2,10 @@
 XML parser for stitching transformation matrices
 """
 
+import json
 from pathlib import Path
 from typing import Dict, Tuple, Union
-import json
+
 import xmltodict
 
 # IO types
@@ -36,7 +37,7 @@ def save_dict_as_json(
         json.dump(dictionary, json_file, indent=4)
 
 
-class XMLParser:
+class TeraStitcherXMLParser:
     """
     Class to parse from XML to JSON format
     """
@@ -167,9 +168,7 @@ class XMLParser:
             data = {}
 
             if displacement is not None:
-
                 for key, val in displacement["Displacement"].items():
-
                     if key in ["V", "H", "D"]:
                         axis = self.terastitcher_str_reference[key][0]
                         data[axis] = val["@displ"]

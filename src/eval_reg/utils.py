@@ -188,9 +188,7 @@ def sample_points_in_overlap(
     dims_sample_points = []
 
     if sample_type == "random":
-
         for dim_idx in range(n_dims):
-
             o_min = max(bounds_1[0][dim_idx], bounds_2[0][dim_idx])
             o_max = min(bounds_1[1][dim_idx], bounds_2[1][dim_idx]) - 1
 
@@ -204,7 +202,6 @@ def sample_points_in_overlap(
         o_max = []
 
         for dim_idx in range(n_dims):
-
             o_min.append(max(bounds_1[0][dim_idx], bounds_2[0][dim_idx]))
             o_max.append(min(bounds_1[1][dim_idx], bounds_2[1][dim_idx]))
 
@@ -243,7 +240,6 @@ def sample_points_in_overlap(
 def calculate_bounds(
     image_1_shape: Tuple, image_2_shape: Tuple, transform: np.ndarray
 ) -> Tuple:
-
     """
     Calculate bounds of coverage for two images and a transform
     where image1 is in its own coordinate system and image 2 is mapped
@@ -280,8 +276,13 @@ def calculate_bounds(
     # Maximum point
     pt_max = np.matrix(np.array(list(image_2_shape) + [1])).transpose()
 
+    print("Transform: ", transform, transform.shape)
+    print("Pt min: ", pt_min, pt_min.shape)
+    # exit()
     # Getting coordinates for second image into image_1 coordinate system
-    coord_1 = np.squeeze(transform * pt_min,).tolist()[
+    coord_1 = np.squeeze(
+        transform * pt_min,
+    ).tolist()[
         0
     ][:-1]
 
@@ -386,7 +387,6 @@ def extract_data(
     """
 
     if last_dimensions is not None:
-
         if last_dimensions > arr.ndim:
             raise ValueError(
                 "Last dimensions should be lower than array dimensions"
@@ -536,6 +536,41 @@ class SliceTracker:
         )
 
 
+def validate_image_transform(
+    image_1: ArrayLike, image_2: ArrayLike, transform_matrix: np.matrix
+):
+    """
+    Validates the shape of the images as well as the
+    transformation matrix
+
+    Parameters
+    -----------
+    image_1: ArrayLike
+        Provided image 1
+
+    image_2: ArrayLike
+        Provided image 2
+
+    transform_matrix: np.matrix
+        Transformation matrix that relates both images
+        to the same image coordinate system
+    """
+    image_1_len = len(image_1.shape)
+    image_2_len = len(image_2.shape)
+
+    if (
+        image_1_len == image_2_len
+        and image_2_len != transform_matrix.shape[0] - 1
+        and image_2_len + 1 != transform_matrix.shape[1]
+    ):
+        raise ValueError(
+            f"""
+            Transformation matrix with shape {transform_matrix.shape}
+            does not match image dimensions {image_1_len}
+            """
+        )
+
+
 def visualize_images(
     image_1_data: ArrayLike,
     image_2_data: ArrayLike,
@@ -543,7 +578,6 @@ def visualize_images(
     pruned_points: ArrayLike,
     selected_pruned_points: ArrayLike,
 ) -> None:
-
     """
     Function that plots an image to help visualize the
     intersection area, sampled points and images.
@@ -589,6 +623,7 @@ def visualize_images(
         adjusted_img_1 = np.ones((size_x, size_y)) * 255
         adjusted_img_2 = np.ones((size_x, size_y)) * 255
 
+        # flake8: noqa: E203
         # Getting data from the images to common coordinate image
         adjusted_img_1[: bounds_1[1][0], : bounds_1[1][1]] = image_1_data
         adjusted_img_2[bounds_2[0][0] :, bounds_2[0][1] :] = image_2_data

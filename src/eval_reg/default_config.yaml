@@ -1,7 +1,7 @@
 ---
 image_channel: 0
-data_type: small
-metric: ISSM #SSD
+data_type: large
+metric: SSD
 window_size: 5
 sampling_info:
   sampling_type: grid

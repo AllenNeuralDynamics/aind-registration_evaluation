@@ -276,17 +276,17 @@ class TiffReader(ImageReader):
             Dask array with the image
 
         """
-
+        data_path = str(self.data_path)
         name = "imread-%s" % tokenize(
-            self.data_path, map(os.path.getmtime, self.data_path)
+            data_path, map(os.path.getmtime, data_path)
         )
 
-        with pims.open(self.data_path) as imgs:
+        with pims.open(data_path) as imgs:
             shape = (1,) + (len(imgs),) + imgs.frame_shape
             dtype = np.dtype(imgs.pixel_type)
 
         key = [(name,) + (0,) * len(shape)]
-        value = [(add_leading_dim, (sk_imread, self.data_path))]
+        value = [(add_leading_dim, (sk_imread, data_path))]
         dask_arr = dict(zip(key, value))
 
         if chunk_size is None:
@@ -306,6 +306,7 @@ class TiffReader(ImageReader):
         """
         return self.tiff.asarray()
 
+    @property
     def shape(self) -> Tuple:
         """
         Abstract method to return the shape of the image.
@@ -316,8 +317,12 @@ class TiffReader(ImageReader):
             Tuple with the shape of the image
 
         """
-        self.tiff.aszarr().shape
+        with pims.open(str(self.data_path)) as imgs:
+            shape = (len(imgs),) + imgs.frame_shape
 
+        return shape
+
+    @property
     def chunks(self) -> Tuple:
         """
         Abstract method to return the chunks of the image if it's possible.
@@ -328,7 +333,7 @@ class TiffReader(ImageReader):
             Tuple with the chunks of the image
 
         """
-        self.tiff.aszarr().chunks
+        return self.tiff.aszarr().chunks
 
     def close_handler(self) -> None:
         """
@@ -479,7 +484,10 @@ def create_sample_data_3D(
 
 
 def get_data(
-    path_image_1: PathLike, path_image_2: PathLike, data_type: str
+    path_image_1: PathLike,
+    path_image_2: PathLike,
+    data_type: str,
+    transform_matrix: np.matrix = None,
 ) -> List:
     """
     Function that gets data depending the datatype.
@@ -496,6 +504,10 @@ def get_data(
     data_type: str
         If we are creating sample data for testing
         purposes or processing real data
+
+    transform_matrix: np.matrix
+        Transformation matrix that will be applied
+        to the images. It must match the dimensions.
 
     Returns
     ------------------------
@@ -515,18 +527,6 @@ def get_data(
         # factory in how to load the image
         loaded_img_1 = ImageReaderFactory().create(path_image_1)
         loaded_img_2 = ImageReaderFactory().create(path_image_2)
+        transform_matrix = np.matrix(transform_matrix)
 
-        # TODO Get transformation matrix from terastitcher
-        # transform = np.matrix([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
-        transform = np.matrix([[1, 0, 0], [0, 1, 1800], [0, 0, 1]])  # Y  # X
-
-        # transform = np.matrix(
-        #     [
-        #         [1, 0, 0, 0],  # Z
-        #         [0, 1, 0, 0],  # Y
-        #         [0, 0, 1, 400],  # X
-        #         [0, 0, 0, 1],
-        #     ]
-        # )
-
-        return [loaded_img_1, loaded_img_2, transform]
+        return [loaded_img_1, loaded_img_2, transform_matrix]

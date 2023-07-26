@@ -5,12 +5,11 @@ import os
 from pathlib import Path
 from typing import Union
 
-import io_utils
 import numpy as np
-import utils
 import yaml
 from argschema import ArgSchemaParser
 
+from . import io_utils, utils
 from .metrics import ImageMetricsFactory
 from .params import EvalRegSchema
 
@@ -53,6 +52,7 @@ class EvalStitching(ArgSchemaParser):
             path_image_1=self.args["image_1"],
             path_image_2=self.args["image_2"],
             data_type=self.args["data_type"],
+            transform_matrix=self.args["transform_matrix"],
         )
 
         if self.args["data_type"] == "large":
@@ -68,14 +68,24 @@ class EvalStitching(ArgSchemaParser):
             image_1_data = image_1
             image_2_data = image_2
 
+        utils.validate_image_transform(
+            image_1=image_1_data,
+            image_2=image_2_data,
+            transform_matrix=transform,
+        )
+
         image_1_shape = image_1_data.shape
         image_2_shape = image_2_data.shape
+
+        print(f"Check images shapes: {image_1_shape} {image_2_shape}")
 
         # calculate extent of overlap using transforms
         # in common coordinate system (assume for image 1)
         bounds_1, bounds_2 = utils.calculate_bounds(
             image_1_shape, image_2_shape, transform
         )
+
+        print(f"Image 1 bounds: {bounds_1} - Image 2 bounds: {bounds_2}")
 
         # #Sample points in overlapping bounds
         points = utils.sample_points_in_overlap(
@@ -112,7 +122,6 @@ class EvalStitching(ArgSchemaParser):
         selected_pruned_points = []
 
         for pruned_point in pruned_points:
-
             met = metric_calculator.calculate_metrics(
                 point=pruned_point, transform=transform
             )

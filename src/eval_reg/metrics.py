@@ -962,7 +962,6 @@ class LargeImageMetrics(ImageMetrics):
         value_error = None
 
         try:
-
             value_error = da.map_blocks(
                 lambda a, b: metrics.structural_similarity(
                     a,
@@ -1018,7 +1017,6 @@ class LargeImageMetrics(ImageMetrics):
         weight = 1.0
 
         try:
-
             patch_1_mean = patch_1.mean()
 
             numerator = da.map_blocks(
@@ -1042,7 +1040,6 @@ class LargeImageMetrics(ImageMetrics):
 
             # Non-zero numerator and Non-zero denominator: use the formula
             if nonzero_denominator & nonzero_numerator:
-
                 value_error = 1 - (numerator / denominator)
 
             # Non-zero Numerator and Zero Denominator:
@@ -1192,7 +1189,6 @@ class LargeImageMetrics(ImageMetrics):
         value_error = None
 
         try:
-
             range_bin_patch_1 = [
                 da.min(patch_1).compute(),
                 da.max(patch_1).compute(),
@@ -1460,7 +1456,7 @@ class LargeImageMetrics(ImageMetrics):
                 dtype=self.dtype,
             )
 
-            return da.sqrt(x_gradient ** 2 + y_gradient ** 2, dtype=self.dtype)
+            return da.sqrt(x_gradient**2 + y_gradient**2, dtype=self.dtype)
 
         def numerical_similarity_measure(
             patch_1: ArrayLike, patch_2: ArrayLike, C: float
@@ -1487,7 +1483,7 @@ class LargeImageMetrics(ImageMetrics):
             """
 
             numerator = 2 * patch_1 * patch_2 + C
-            denominator = patch_1 ** 2 + patch_2 ** 2 + C
+            denominator = patch_1**2 + patch_2**2 + C
 
             return numerator / denominator
 
@@ -1533,7 +1529,7 @@ class LargeImageMetrics(ImageMetrics):
         )
 
         # Following formula described in the paper
-        S_l = (S_phase_congruency ** alpha) * (S_gradient_magnitude ** beta)
+        S_l = (S_phase_congruency**alpha) * (S_gradient_magnitude**beta)
 
         numerator = da.sum(
             S_l
@@ -2194,7 +2190,7 @@ class SmallImageMetrics(ImageMetrics):
                 patched_image, image_depth, 0, 1
             )
 
-            return np.sqrt(x_gradient ** 2 + y_gradient ** 2, dtype=self.dtype)
+            return np.sqrt(x_gradient**2 + y_gradient**2, dtype=self.dtype)
 
         def numerical_similarity_measure(
             patch_1: ArrayLike, patch_2: ArrayLike, C: float
@@ -2221,7 +2217,7 @@ class SmallImageMetrics(ImageMetrics):
             """
 
             numerator = 2 * patch_1 * patch_2 + C
-            denominator = patch_1 ** 2 + patch_2 ** 2 + C
+            denominator = patch_1**2 + patch_2**2 + C
 
             return numerator / denominator
 
@@ -2266,7 +2262,7 @@ class SmallImageMetrics(ImageMetrics):
         )
 
         # Following formula described in the paper
-        S_l = (S_phase_congruency ** alpha) * (S_gradient_magnitude ** beta)
+        S_l = (S_phase_congruency**alpha) * (S_gradient_magnitude**beta)
 
         numerator = np.sum(
             S_l
