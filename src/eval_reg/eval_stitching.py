@@ -44,6 +44,8 @@ class EvalStitching(ArgSchemaParser):
             Evaluate block
         """
 
+        print(self.args)
+
         image_1_data = None
         image_2_data = None
 
@@ -77,15 +79,11 @@ class EvalStitching(ArgSchemaParser):
         image_1_shape = image_1_data.shape
         image_2_shape = image_2_data.shape
 
-        print(f"Check images shapes: {image_1_shape} {image_2_shape}")
-
         # calculate extent of overlap using transforms
         # in common coordinate system (assume for image 1)
         bounds_1, bounds_2 = utils.calculate_bounds(
             image_1_shape, image_2_shape, transform
         )
-
-        print(f"Image 1 bounds: {bounds_1} - Image 2 bounds: {bounds_2}")
 
         # #Sample points in overlapping bounds
         points = utils.sample_points_in_overlap(
@@ -96,9 +94,7 @@ class EvalStitching(ArgSchemaParser):
             image_shape=image_1_shape,
         )
 
-        # print("Points: ", points)
-
-        # Points that fit in window based on a window size
+        print("N Points: ", len(points))
         pruned_points = utils.prune_points_to_fit_window(
             image_1_shape, points, self.args["window_size"]
         )
@@ -142,13 +138,14 @@ class EvalStitching(ArgSchemaParser):
         \nDiscarded points by metric: {dscrd_pts}"""
         LOGGER.info(message)
 
-        utils.visualize_images(
-            image_1_data,
-            image_2_data,
-            [bounds_1, bounds_2],
-            pruned_points,
-            selected_pruned_points,
-        )
+        # utils.visualize_images(
+        #     image_1_data,
+        #     image_2_data,
+        #     [bounds_1, bounds_2],
+        #     pruned_points,
+        #     selected_pruned_points,
+        #     transform
+        # )
 
 
 def get_default_config(filename: PathLike = None):

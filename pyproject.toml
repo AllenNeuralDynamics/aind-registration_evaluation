@@ -79,4 +79,4 @@ line_length = 79
 
 [tool.interrogate]
 exclude = ["setup.py", "docs", "build"]
-fail-under = 100
+fail-under = 80

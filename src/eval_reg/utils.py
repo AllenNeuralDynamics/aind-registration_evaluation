@@ -11,7 +11,101 @@ from matplotlib.patches import Rectangle
 ArrayLike = Union[da.Array, np.array]
 
 
-def get_multiplicatives_2D(num_points: int) -> Tuple[int]:
+def two_mult_closest(nums: List[int], target=int) -> List[int]:
+    """
+    Finds the closest two numbers from a list of
+    numbers that multiply to a target
+
+    Parameters
+    ----------
+    nums: List[int]
+        List of nums from where we
+        will find the two closests
+
+    target: int
+        Multiplicative target
+
+    Returns
+    ----------
+    List[int]
+        List contains a list of
+        the two numbers that were found
+    """
+    nums = sorted(nums)
+    nLimit = len(nums)
+
+    if nLimit == 2:
+        return [nums[0], nums[1]]
+
+    elif nLimit <= 1:
+        raise ValueError(
+            f"Please, check the divisors to multiply. Received: {nums}"
+        )
+
+    left = nLimit // 2
+    right = nLimit // 2
+
+    while left >= 0 and right <= nLimit - 1:
+        mult = nums[left] * nums[right]
+        if mult == target:
+            return [nums[left], nums[right]]
+
+        elif mult < target:
+            right += 1
+        else:
+            left -= 1
+
+    return [nums[left], nums[right]]
+
+
+def three_mult_closest(nums: List[int], target: int) -> List[int]:
+    """
+    Finds the closest three numbers from
+    a list of numbers that multiply to
+    a target
+
+    Parameters
+    ----------
+    nums: List[int]
+        List of nums from where we
+        will find the two closests
+
+    target: int
+        Multiplicative target
+
+    Returns
+    ----------
+    List[int]
+        List contains a list of
+        the two numbers that were found
+    """
+    nums = sorted(nums)
+    n = len(nums)
+    closest = 9999
+    selected_nums = []
+
+    for idx in range(n - 2):
+        i = idx + 1
+        j = n - 1
+
+        while i < j:
+            mult = nums[idx] * nums[i] * nums[j]
+            selected_nums = [nums[idx], nums[i], nums[j]]
+
+            if mult < target:
+                i += 1
+            elif mult > target:
+                j -= 1
+            else:
+                return selected_nums
+
+            if abs(closest - target) > abs(mult - target):
+                closest = mult
+
+    return selected_nums, closest
+
+
+def get_multiplicatives(num_points: int, mode="2d") -> Tuple[int]:
     """
     Gets middle multiplicative divisors of a set of points.
     Helper function used to build the grid of points.
@@ -23,22 +117,51 @@ def get_multiplicatives_2D(num_points: int) -> Tuple[int]:
         Number of points that will be sampled in the
         intersection image as a grid.
 
+    mode: str
+        Mode to return number of multiplicatives
+        that sum up to num_points value.
+        Default: "2d". Possible options ["2d", "3d"]
+
+    Raises
+    ------------------------
+    ValueError:
+        In situations where num_points is negative or zero
+
+    NotImplementedError:
+        In siuations where the mode is not available
+
     Returns
     ------------------------
     Tuple:
         Middle multiplicative divisors of the set of
         points to be displayed as a grid.
     """
+    mode = mode.casefold()
+
+    if num_points <= 0:
+        raise ValueError("Please, check the number of points.")
+
+    if mode not in ["2d", "3d"]:
+        raise NotImplementedError(f"Mode {mode} has not been implemented")
+
     divs = []
 
     for i in range(1, num_points):
         if num_points % i == 0:
             divs.append(i)
 
-    len_div = len(divs)
+    if mode == "2d":
+        new_n_points = two_mult_closest(nums=divs, target=num_points)
 
-    middle = len_div // 2
-    return divs[middle], divs[middle + 1]
+    else:
+        new_n_points = three_mult_closest(nums=divs, target=num_points)
+
+    closest_points = np.prod(np.array(new_n_points))
+
+    if closest_points != num_points:
+        print(f"Setting new number of points to {closest_points}")
+
+    return new_n_points
 
 
 def check_image_intersection_2D(
@@ -72,11 +195,11 @@ def check_image_intersection_2D(
             return False
 
     # If images are on sides of each other in X
-    if bounds_1[0][0] > bounds_2[1][0] or bounds_2[0][0] > bounds_1[1][0]:
+    if bounds_1[0][0] >= bounds_2[1][0] or bounds_2[0][0] >= bounds_1[1][0]:
         return False
 
     # If images are on top of each other in Y
-    if bounds_1[0][1] > bounds_2[1][1] or bounds_2[0][1] > bounds_1[1][1]:
+    if bounds_1[0][1] >= bounds_2[1][1] or bounds_2[0][1] >= bounds_1[1][1]:
         return False
 
     return True
@@ -117,6 +240,82 @@ def check_image_intersection_3D(
     # TODO check offset by combined axis
 
     return True
+
+
+def sample_nd_grid_points(
+    bounds_1: List[int], bounds_2: List[int], numpoints: int
+) -> List[List[int]]:
+    """
+    Samples 2 or 3 dimensional points with grid
+    from within  the intersection of the two
+    provided images using the transformation matrix
+
+    Parameters
+    ----------
+    bounds_1: List[int]
+        List containing the boundaries where image 1
+        starts and ends in the shared coordinate system
+        that connects both images
+
+    bounds_2: List[int]
+        List containing the boundaries where image 2
+        starts and ends in the shared coordinate system
+        that connects both images
+
+    numpoints: int
+        Number of points that will be sampled in the
+        intersection area
+
+    Returns
+    ----------
+    List[List[int]]
+        List of points in the intersection area
+    """
+    o_min = []
+    o_max = []
+
+    # Number of dimensions on the image
+    n_dims = len(bounds_1[0])
+
+    # Getting left corner point and right corner point
+    # in the intersection area
+    for dim_idx in range(n_dims):
+        o_min_val = max(bounds_1[0][dim_idx], bounds_2[0][dim_idx])
+        o_max_val = min(bounds_1[1][dim_idx], bounds_2[1][dim_idx])
+
+        o_min.append(o_min_val)
+        o_max.append(o_max_val)
+
+    y_space = abs(o_max[0] - o_min[0])
+    x_space = abs(o_max[1] - o_min[1])
+
+    matrix_vals = get_multiplicatives(numpoints, mode="2d")
+
+    x_points_distance = None
+    y_points_distance = None
+
+    if y_space > x_space:
+        y_points_distance = matrix_vals[1]
+        x_points_distance = matrix_vals[0]
+
+    else:
+        y_points_distance = matrix_vals[0]
+        x_points_distance = matrix_vals[1]
+
+    dims_sample_points = [
+        array.flatten()
+        for array in np.meshgrid(
+            np.linspace(
+                o_min[0], o_max[0], y_points_distance, dtype=int
+            ),  # For Y
+            np.linspace(
+                o_min[1], o_max[1], x_points_distance, dtype=int
+            ),  # For X
+            indexing="ij",
+        )
+    ]
+
+    return dims_sample_points
 
 
 def sample_points_in_overlap(
@@ -197,41 +396,22 @@ def sample_points_in_overlap(
             dims_sample_points.append(random_choice)
 
     elif sample_type == "grid":
-        # Only for 2D so far
-        o_min = []
-        o_max = []
+        image_shape_len = len(image_shape)
 
-        for dim_idx in range(n_dims):
-            o_min.append(max(bounds_1[0][dim_idx], bounds_2[0][dim_idx]))
-            o_max.append(min(bounds_1[1][dim_idx], bounds_2[1][dim_idx]))
+        if image_shape_len == 2:
+            dims_sample_points = sample_nd_grid_points(
+                bounds_1=bounds_1, bounds_2=bounds_2, numpoints=numpoints
+            )
 
-        y_space = abs(o_min[1] - o_min[0])
-        x_space = abs(o_max[1] - o_max[0])
-
-        matrix_vals = get_multiplicatives_2D(numpoints)
-        x_points_distance = None
-        y_points_distance = None
-
-        if y_space > x_space:
-            y_points_distance = matrix_vals[1]
-            x_points_distance = matrix_vals[0]
+        elif image_shape_len == 3:
+            raise NotImplementedError(
+                "Sampling points in 3D has not been developed yet"
+            )
 
         else:
-            y_points_distance = matrix_vals[0]
-            x_points_distance = matrix_vals[1]
-
-        dims_sample_points = [
-            array.flatten()
-            for array in np.meshgrid(
-                np.linspace(
-                    o_min[0], o_max[0], y_points_distance, dtype=int
-                ),  # For Y
-                np.linspace(
-                    o_min[1], o_max[1], x_points_distance, dtype=int
-                ),  # For X
-                indexing="ij",
+            raise ValueError(
+                "Sampling points in image dimensions higher than 3 has not been developed yet"
             )
-        ]
 
     dims_sample_points = np.array(dims_sample_points).transpose()
     return dims_sample_points
@@ -577,6 +757,7 @@ def visualize_images(
     bounds: List[np.ndarray],
     pruned_points: ArrayLike,
     selected_pruned_points: ArrayLike,
+    transform: np.matrix,
 ) -> None:
     """
     Function that plots an image to help visualize the
@@ -600,7 +781,46 @@ def visualize_images(
     selected_pruned_points: ArrayLike
         Points inside the intersection area that were used for the metric.
 
+    transform: np.matrix
+        Transformation matrix applied to the images
     """
+
+    def generate_new_boundaries():
+        lower_bound_1, upper_bound_1 = None, None
+        lower_bound_2, upper_bound_2 = None, None
+
+        if ty >= 0:
+            lower_bound_1 = [bounds_1[0][0]]
+            upper_bound_1 = [bounds_1[1][0]]
+
+            lower_bound_2 = [bounds_2[0][0]]
+            upper_bound_2 = [bounds_2[1][0]]
+
+        else:
+            lower_bound_1 = [abs(ty)]
+            upper_bound_1 = [bounds_2[1][0] + abs(ty) * 2]
+
+            lower_bound_2 = [bounds_1[0][0]]
+            upper_bound_2 = [bounds_1[1][0]]
+
+        if tx >= 0:
+            lower_bound_1.append(bounds_1[0][1])
+            upper_bound_1.append(bounds_1[1][1])
+
+            lower_bound_2.append(bounds_2[0][1])
+            upper_bound_2.append(bounds_2[1][1])
+
+        else:
+            lower_bound_1 = [bounds_2[0][1]]
+            upper_bound_1 = [bounds_2[1][1]]
+
+            lower_bound_2 = [bounds_1[0][1]]
+            upper_bound_2 = [bounds_1[1][1]]
+
+        img_1_bounds = [lower_bound_1, upper_bound_1]
+        img_2_bounds = [lower_bound_2, upper_bound_2]
+
+        return img_1_bounds, img_2_bounds
 
     if image_1_data.ndim != image_2_data.ndim:
         raise ValueError("Images should have the same shape")
@@ -616,17 +836,93 @@ def visualize_images(
         # plot directly the images and grid
 
         # Getting max boundaries in X and Y
-        size_x = max(bounds_1[1][0], bounds_2[1][0])
-        size_y = max(bounds_1[1][1], bounds_2[1][1])
+        ty = transform[0, -1]
+        tx = transform[1, -1]
+
+        size_y = image_1_data.shape[0] + abs(ty)
+        size_x = image_1_data.shape[1] + abs(tx)
+
+        # size_x = max(bounds_1[1][0], bounds_2[1][0])
+        # size_y = max(bounds_1[1][1], bounds_2[1][1])
+
+        img_1_bounds, img_2_bounds = generate_new_boundaries()
 
         # Image within same coordinate system
-        adjusted_img_1 = np.ones((size_x, size_y)) * 255
-        adjusted_img_2 = np.ones((size_x, size_y)) * 255
+        adjusted_img_1 = np.ones((size_y, size_x)) * 255
+        adjusted_img_2 = np.ones((size_y, size_x)) * 255
 
         # flake8: noqa: E203
         # Getting data from the images to common coordinate image
-        adjusted_img_1[: bounds_1[1][0], : bounds_1[1][1]] = image_1_data
-        adjusted_img_2[bounds_2[0][0] :, bounds_2[0][1] :] = image_2_data
+        points_orig_img = (
+            np.array(
+                [np.arange(0, image_1_data.shape[0], step=1, dtype=np.intp)]
+            ),
+            np.array(
+                [np.arange(0, image_1_data.shape[1], step=1, dtype=np.intp)]
+            ),
+        )
+
+        points_img_1 = (
+            np.array(
+                [
+                    np.arange(
+                        img_1_bounds[0][0],
+                        img_1_bounds[1][0],
+                        step=1,
+                        dtype=np.intp,
+                    )
+                ]
+            ),
+            np.array(
+                [
+                    np.arange(
+                        img_1_bounds[0][1],
+                        img_1_bounds[1][1],
+                        step=1,
+                        dtype=np.intp,
+                    )
+                ]
+            ),
+        )
+
+        points_img_2 = (
+            np.array(
+                [
+                    np.arange(
+                        img_2_bounds[0][0],
+                        img_2_bounds[1][0],
+                        step=1,
+                        dtype=np.intp,
+                    )
+                ]
+            ),
+            np.array(
+                [
+                    np.arange(
+                        img_2_bounds[0][1],
+                        img_2_bounds[1][1],
+                        step=1,
+                        dtype=np.intp,
+                    )
+                ]
+            ),
+        )
+
+        xv_img_1, yv_img_1 = np.meshgrid(*points_img_1, indexing="ij")
+        xv_img_2, yv_img_2 = np.meshgrid(*points_img_2, indexing="ij")
+        xv_orig, yv_orig = np.meshgrid(*points_orig_img, indexing="ij")
+
+        # vindex takes some time when processing with dask
+        adjusted_img_1[xv_img_1, yv_img_1] = (
+            image_1_data[xv_orig, yv_orig]
+            if isinstance(image_1_data, np.ndarray)
+            else image_1_data.vindex[xv_orig, yv_orig]
+        )
+        adjusted_img_2[xv_img_2, yv_img_2] = (
+            image_2_data[xv_orig, yv_orig]
+            if isinstance(image_2_data, np.ndarray)
+            else image_2_data.vindex[xv_orig, yv_orig]
+        )
 
         fig, ax = plt.subplots()
 
@@ -641,13 +937,16 @@ def visualize_images(
 
         # Scattering points within image in common coordinate system
         plt.scatter(x=x_points, y=y_points, c="r", s=10)
-        plt.scatter(x=selected_x_points, y=selected_y_points, c="b", s=10)
+        plt.scatter(x=selected_x_points, y=selected_y_points, c="g", s=10)
+
+        print(min(y_points), max(y_points))
+        print(min(selected_y_points), max(selected_y_points))
 
         # Rectangles to divide images
         rectangle_image_1 = Rectangle(
-            xy=(bounds_1[0][1], bounds_1[0][0]),
-            width=bounds_1[1][1],
-            height=bounds_1[1][0],
+            xy=(img_1_bounds[0][1], img_1_bounds[0][0]),
+            width=img_1_bounds[1][1],
+            height=img_1_bounds[1][0],
             linewidth=1,
             edgecolor="#FF2D00",
             facecolor="none",
@@ -655,9 +954,9 @@ def visualize_images(
         )
 
         rectangle_image_2 = Rectangle(
-            xy=(bounds_2[0][1], bounds_2[0][0]),
-            width=bounds_1[1][1],
-            height=bounds_1[1][0],
+            xy=(img_2_bounds[0][1], img_2_bounds[0][0]),
+            width=img_1_bounds[1][1],
+            height=img_1_bounds[1][0],
             linewidth=1,
             edgecolor="#13FF00",
             facecolor="none",
