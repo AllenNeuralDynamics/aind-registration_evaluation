@@ -94,7 +94,6 @@ class EvalStitching(ArgSchemaParser):
             image_shape=image_1_shape,
         )
 
-        print("N Points: ", len(points))
         pruned_points = utils.prune_points_to_fit_window(
             image_1_shape, points, self.args["window_size"]
         )

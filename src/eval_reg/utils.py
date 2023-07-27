@@ -936,9 +936,6 @@ def visualize_images(
         plt.scatter(x=x_points, y=y_points, c="r", s=10)
         plt.scatter(x=selected_x_points, y=selected_y_points, c="g", s=10)
 
-        print(min(y_points), max(y_points))
-        print(min(selected_y_points), max(selected_y_points))
-
         # Rectangles to divide images
         rectangle_image_1 = Rectangle(
             xy=(img_1_bounds[0][1], img_1_bounds[0][0]),

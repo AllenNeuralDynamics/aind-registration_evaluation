@@ -25,7 +25,9 @@ dependencies = [
   'zarr',
   'scikit-learn',
   'pims',
-  'tifffile'
+  'tifffile',
+  'phasepack',
+  'pyfftw'
 ]
 
 [project.optional-dependencies]
