@@ -45,9 +45,9 @@ def main():
     # default_config["image_1"] = os.path.abspath(BASE_PATH + "block_10.tif")
     # default_config["image_2"] = os.path.abspath(BASE_PATH + "block_10.tif")
     # default_config["transform_matrix"] = [
-    #     [1, 0, 0, 100],  # Z
-    #     [0, 1, 0, 100],  # Y
-    #     [0, 0, 1, 0],  # X
+    #     [1, 0, 0, 0],  # Z
+    #     [0, 1, 0, 325],  # Y
+    #     [0, 0, 1, -1],  # X
     #     [0, 0, 0, 1],
     # ]
 

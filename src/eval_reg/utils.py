@@ -456,9 +456,6 @@ def calculate_bounds(
     # Maximum point
     pt_max = np.matrix(np.array(list(image_2_shape) + [1])).transpose()
 
-    print("Transform: ", transform, transform.shape)
-    print("Pt min: ", pt_min, pt_min.shape)
-    # exit()
     # Getting coordinates for second image into image_1 coordinate system
     coord_1 = np.squeeze(
         transform * pt_min,

@@ -13,29 +13,30 @@ classifiers = [
 dynamic = ["version", "readme"]
 
 dependencies = [
-    'pandas',
-    'sphinx',
-    'aicsimageio',
-    'argschema',
-    'scikit-image',
-    'ome-zarr',
-    'argschema',
-    'matplotlib',
-    'numpy',
-    'zarr',
-    'scikit-learn',
-    'pims',
-    'tifffile'
+  'pandas',
+  'sphinx',
+  'aicsimageio',
+  'argschema',
+  'scikit-image',
+  'ome-zarr',
+  'argschema',
+  'matplotlib',
+  'numpy',
+  'zarr',
+  'scikit-learn',
+  'pims',
+  'tifffile'
 ]
 
 [project.optional-dependencies]
 dev = [
-    'black',
-    'coverage',
-    'flake8',
-    'interrogate',
-    'isort',
-    'Sphinx'
+  'black',
+  'coverage',
+  'flake8',
+  'interrogate',
+  'isort',
+  'pygit2',
+  'Sphinx'
 ]
 
 [tool.setuptools.packages.find]
