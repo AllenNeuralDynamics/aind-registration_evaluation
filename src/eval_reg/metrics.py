@@ -207,7 +207,7 @@ class ImageMetrics(ABC):
         self.__window_size = new_window_size
 
     @property
-    def eps(self) -> np.float:
+    def eps(self) -> np.float64:
         """
         Getter of the difference between 1.0 and the next
         smallest representable float larger than 1.0.
