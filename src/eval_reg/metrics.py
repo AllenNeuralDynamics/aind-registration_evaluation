@@ -1,4 +1,4 @@
-""" Modules to calculate Metrics between features
+""" Module to calculate Metrics between features
 """
 
 import math
@@ -22,6 +22,11 @@ ArrayLike = Union[da.core.Array, np.ndarray]
 
 
 class ImageMetrics(ABC):
+    """
+    Abstract class to calculate a metric in
+    a pair of images
+    """
+
     def __init__(
         self,
         image_1: ArrayLike,
@@ -736,6 +741,10 @@ class ImageMetrics(ABC):
 
 # We're working with dask for large images
 class LargeImageMetrics(ImageMetrics):
+    """
+    Class for calculating a metric on large images
+    """
+
     def __init__(
         self,
         image_1: ImageReader,
@@ -953,7 +962,6 @@ class LargeImageMetrics(ImageMetrics):
         value_error = None
 
         try:
-
             value_error = da.map_blocks(
                 lambda a, b: metrics.structural_similarity(
                     a,
@@ -1009,7 +1017,6 @@ class LargeImageMetrics(ImageMetrics):
         weight = 1.0
 
         try:
-
             patch_1_mean = patch_1.mean()
 
             numerator = da.map_blocks(
@@ -1033,7 +1040,6 @@ class LargeImageMetrics(ImageMetrics):
 
             # Non-zero numerator and Non-zero denominator: use the formula
             if nonzero_denominator & nonzero_numerator:
-
                 value_error = 1 - (numerator / denominator)
 
             # Non-zero Numerator and Zero Denominator:
@@ -1183,7 +1189,6 @@ class LargeImageMetrics(ImageMetrics):
         value_error = None
 
         try:
-
             range_bin_patch_1 = [
                 da.min(patch_1).compute(),
                 da.max(patch_1).compute(),
@@ -1413,6 +1418,21 @@ class LargeImageMetrics(ImageMetrics):
             image_depth: Type = cv2.CV_16U,
             method: str = "scharr",
         ):
+            """
+            Computes the gradient magnitude for an image
+
+            Parameters
+            -------------
+            patched_image: ArrayLike
+                Patch of an image
+
+            image_depth: Type
+                Image depth. Default: 16 bit
+
+            Method: str
+                Method to compute the gradient magnitude
+                Default: scharr
+            """
 
             if method == "sobel":
                 gradient_magnitude_function = cv2.Sobel
@@ -1441,6 +1461,26 @@ class LargeImageMetrics(ImageMetrics):
         def numerical_similarity_measure(
             patch_1: ArrayLike, patch_2: ArrayLike, C: float
         ):
+            """
+            Computes the numerical similarity measure
+
+            Parameters
+            --------------
+            patch_1: ArrayLike
+                Patch from image 1
+
+            patch_2: ArrayLike
+                Patch from image 2
+
+            C: float
+                Constant value
+
+            Returns
+            --------------
+            float
+                Computed value for the similarity
+                measure
+            """
 
             numerator = 2 * patch_1 * patch_2 + C
             denominator = patch_1**2 + patch_2**2 + C
@@ -1523,6 +1563,10 @@ class LargeImageMetrics(ImageMetrics):
 
 
 class SmallImageMetrics(ImageMetrics):
+    """
+    Class for calculating a metric on small images
+    """
+
     def __init__(
         self,
         image_1: ImageReader,
@@ -1573,6 +1617,26 @@ class SmallImageMetrics(ImageMetrics):
     def get_patches(
         self, windowed_points: np.ndarray, transform: np.matrix
     ) -> Tuple[np.ndarray]:
+        """
+        Method to get patches from the images using numpy.
+
+        Parameters
+        ------------------------
+        windowed_points: np.array
+            Points that are inside of the intersection
+            area. These do not go out from the area
+            using the window size.
+
+        transform: np.matrix
+            Transformation matrix that will be
+            applied to get the patches
+
+        Returns
+        ------------------------
+        Tuple[ArrayLike]
+            Tuple with the patches.
+
+        """
 
         point_1_windowed = windowed_points[0]
         point_2_windowed = windowed_points[1]
@@ -2092,6 +2156,21 @@ class SmallImageMetrics(ImageMetrics):
             image_depth: Type = cv2.CV_16U,
             method: str = "scharr",
         ):
+            """
+            Computes the gradient magnitude for an image
+
+            Parameters
+            -------------
+            patched_image: ArrayLike
+                Patch of an image
+
+            image_depth: Type
+                Image depth. Default: 16 bit
+
+            Method: str
+                Method to compute the gradient magnitude
+                Default: scharr
+            """
 
             if method == "sobel":
                 gradient_magnitude_function = cv2.Sobel
@@ -2115,7 +2194,27 @@ class SmallImageMetrics(ImageMetrics):
 
         def numerical_similarity_measure(
             patch_1: ArrayLike, patch_2: ArrayLike, C: float
-        ):
+        ) -> float:
+            """
+            Computes the numerical similarity measure
+
+            Parameters
+            --------------
+            patch_1: ArrayLike
+                Patch from image 1
+
+            patch_2: ArrayLike
+                Patch from image 2
+
+            C: float
+                Constant value
+
+            Returns
+            --------------
+            float
+                Computed value for the similarity
+                measure
+            """
 
             numerator = 2 * patch_1 * patch_2 + C
             denominator = patch_1**2 + patch_2**2 + C
@@ -2186,6 +2285,10 @@ class SmallImageMetrics(ImageMetrics):
 
 
 class ImageMetricsFactory:
+    """
+    Class image metrics factory
+    """
+
     def __init__(self):
         """
         Class constructor of image metrics factory.

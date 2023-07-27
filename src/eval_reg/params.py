@@ -1,9 +1,13 @@
+"""
+Module for setting parameters in the package
+"""
+
 import os
 import sys
 
 import marshmallow as mm
 from argschema import ArgSchema
-from argschema.fields import InputFile, Int, Nested, Str
+from argschema.fields import Int, List, Nested, Str
 from argschema.schemas import DefaultSchema
 from marshmallow import fields
 
@@ -72,11 +76,16 @@ class EvalRegSchema(ArgSchema):
         metadata={"description": "Path to the file where the data is located"},
     )
 
-    transform = InputFile(
-        required=False,  # True,
+    transform_matrix = List(
+        List(Int()),
+        required=True,
         metadata={
-            "description": "Json with transformation relating images 1 and 2"
+            "description": """
+            Transformation matrix that relates images 1 and 2.
+            e.g., It must have order TCZYX if image has 5 dimensions.
+            """
         },
+        cli_as_single_argument=True,
     )
 
     data_type = Str(

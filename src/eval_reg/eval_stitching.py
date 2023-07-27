@@ -5,12 +5,11 @@ import os
 from pathlib import Path
 from typing import Union
 
-import io_utils
 import numpy as np
-import utils
 import yaml
 from argschema import ArgSchemaParser
 
+from . import io_utils, utils
 from .metrics import ImageMetricsFactory
 from .params import EvalRegSchema
 
@@ -45,6 +44,8 @@ class EvalStitching(ArgSchemaParser):
             Evaluate block
         """
 
+        print(self.args)
+
         image_1_data = None
         image_2_data = None
 
@@ -53,6 +54,7 @@ class EvalStitching(ArgSchemaParser):
             path_image_1=self.args["image_1"],
             path_image_2=self.args["image_2"],
             data_type=self.args["data_type"],
+            transform_matrix=self.args["transform_matrix"],
         )
 
         if self.args["data_type"] == "large":
@@ -67,6 +69,12 @@ class EvalStitching(ArgSchemaParser):
         elif "dummy" in self.args["data_type"]:
             image_1_data = image_1
             image_2_data = image_2
+
+        utils.validate_image_transform(
+            image_1=image_1_data,
+            image_2=image_2_data,
+            transform_matrix=transform,
+        )
 
         image_1_shape = image_1_data.shape
         image_2_shape = image_2_data.shape
@@ -86,9 +94,6 @@ class EvalStitching(ArgSchemaParser):
             image_shape=image_1_shape,
         )
 
-        # print("Points: ", points)
-
-        # Points that fit in window based on a window size
         pruned_points = utils.prune_points_to_fit_window(
             image_1_shape, points, self.args["window_size"]
         )
@@ -112,7 +117,6 @@ class EvalStitching(ArgSchemaParser):
         selected_pruned_points = []
 
         for pruned_point in pruned_points:
-
             met = metric_calculator.calculate_metrics(
                 point=pruned_point, transform=transform
             )
@@ -133,13 +137,14 @@ class EvalStitching(ArgSchemaParser):
         \nDiscarded points by metric: {dscrd_pts}"""
         LOGGER.info(message)
 
-        utils.visualize_images(
-            image_1_data,
-            image_2_data,
-            [bounds_1, bounds_2],
-            pruned_points,
-            selected_pruned_points,
-        )
+        # utils.visualize_images(
+        #     image_1_data,
+        #     image_2_data,
+        #     [bounds_1, bounds_2],
+        #     pruned_points,
+        #     selected_pruned_points,
+        #     transform
+        # )
 
 
 def get_default_config(filename: PathLike = None):
@@ -174,7 +179,9 @@ def get_default_config(filename: PathLike = None):
 
 
 def main():
-    """ """
+    """
+    Main function to test the evaluation performance
+    """
     # Get same configuration from yaml file to apply it over a dataset
     default_config = get_default_config()
 
