@@ -85,13 +85,12 @@ class EvalStitching(ArgSchemaParser):
             image_1_shape, image_2_shape, transform
         )
 
-        # #Sample points in overlapping bounds
+        # Sample points in overlapping bounds
         points = utils.sample_points_in_overlap(
             bounds_1=bounds_1,
             bounds_2=bounds_2,
             numpoints=self.args["sampling_info"]["numpoints"],
             sample_type=self.args["sampling_info"]["sampling_type"],
-            image_shape=image_1_shape,
         )
 
         pruned_points = utils.prune_points_to_fit_window(
@@ -137,14 +136,14 @@ class EvalStitching(ArgSchemaParser):
         \nDiscarded points by metric: {dscrd_pts}"""
         LOGGER.info(message)
 
-        # utils.visualize_images(
-        #     image_1_data,
-        #     image_2_data,
-        #     [bounds_1, bounds_2],
-        #     pruned_points,
-        #     selected_pruned_points,
-        #     transform
-        # )
+        utils.visualize_images(
+            image_1_data,
+            image_2_data,
+            [bounds_1, bounds_2],
+            pruned_points,
+            selected_pruned_points,
+            transform,
+        )
 
 
 def get_default_config(filename: PathLike = None):

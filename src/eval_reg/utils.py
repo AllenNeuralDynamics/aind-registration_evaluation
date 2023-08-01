@@ -7,6 +7,7 @@ import dask.array as da
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle
+from natsort import natsorted
 
 ArrayLike = Union[da.Array, np.array]
 
@@ -79,30 +80,55 @@ def three_mult_closest(nums: List[int], target: int) -> List[int]:
         List contains a list of
         the two numbers that were found
     """
+
     nums = sorted(nums)
     n = len(nums)
     closest = 9999
+    closest_selected = {}
     selected_nums = []
 
-    for idx in range(n - 2):
-        i = idx + 1
-        j = n - 1
+    if n <= 3:
+        return nums
 
-        while i < j:
-            mult = nums[idx] * nums[i] * nums[j]
-            selected_nums = [nums[idx], nums[i], nums[j]]
+    middle_pos = n // 2
+    idx_iter = 0
+
+    while middle_pos >= 0 and middle_pos <= n - 1 and idx_iter < n:
+        lower_pos = middle_pos - 1
+        higher_pos = middle_pos + 1
+
+        while lower_pos >= 0 and higher_pos <= n - 1:
+            mult = nums[lower_pos] * nums[middle_pos] * nums[higher_pos]
+            selected_nums = [
+                nums[lower_pos],
+                nums[middle_pos],
+                nums[higher_pos],
+            ]
 
             if mult < target:
-                i += 1
+                higher_pos += 1
+
             elif mult > target:
-                j -= 1
+                lower_pos -= 1
+
             else:
                 return selected_nums
 
             if abs(closest - target) > abs(mult - target):
                 closest = mult
+                closest_selected[mult] = selected_nums.copy()
 
-    return selected_nums, closest
+        if mult > target:
+            middle_pos -= 1
+
+        else:
+            middle_pos += 1
+
+        idx_iter += 1
+
+    indices = natsorted(closest_selected)
+
+    return closest_selected[indices[0]]
 
 
 def get_multiplicatives(num_points: int, mode="2d") -> Tuple[int]:
@@ -147,7 +173,7 @@ def get_multiplicatives(num_points: int, mode="2d") -> Tuple[int]:
     divs = []
 
     for i in range(1, num_points):
-        if num_points % i == 0:
+        if num_points % i == 0 and i != 1:
             divs.append(i)
 
     if mode == "2d":
@@ -269,13 +295,17 @@ def sample_nd_grid_points(
     Returns
     ----------
     List[List[int]]
-        List of points in the intersection area
+        List of points per dimension in the intersection area.
+        The order is Y X points for 2D images and Z Y X for
+        3D.
     """
-    o_min = []
-    o_max = []
+    dims_sample_points = None
 
     # Number of dimensions on the image
     n_dims = len(bounds_1[0])
+
+    o_min = []
+    o_max = []
 
     # Getting left corner point and right corner point
     # in the intersection area
@@ -286,31 +316,44 @@ def sample_nd_grid_points(
         o_min.append(o_min_val)
         o_max.append(o_max_val)
 
-    y_space = abs(o_max[0] - o_min[0])
-    x_space = abs(o_max[1] - o_min[1])
+    multiplicatives_mode = "2d" if n_dims == 2 else "3d"
+    matrix_vals = get_multiplicatives(numpoints, mode=multiplicatives_mode)
 
-    matrix_vals = get_multiplicatives(numpoints, mode="2d")
+    # For 2D Y X area in intersection
+    # For 3D Z Y X area in intersection
+    # e.g., distanceZ = Zmax - Zmin
+    inter_areas = {}
+    for dim_idx in range(n_dims):
+        inter_areas[dim_idx] = abs(o_max[dim_idx] - o_min[dim_idx])
 
-    x_points_distance = None
-    y_points_distance = None
+    # Sorting the areas by axis
+    inter_areas_sorted = [
+        list(val)
+        for val in sorted(
+            inter_areas.items(), key=lambda axis: axis[1], reverse=False
+        )
+    ]
 
-    if y_space > x_space:
-        y_points_distance = matrix_vals[1]
-        x_points_distance = matrix_vals[0]
+    # Asigning incremental points to incremental intersection areas
+    for idx_dim in range(n_dims):
+        inter_areas_sorted[idx_dim][1] = matrix_vals[idx_dim]
 
-    else:
-        y_points_distance = matrix_vals[0]
-        x_points_distance = matrix_vals[1]
+    inter_areas_sorted = dict(inter_areas_sorted)
+
+    nd_linespaces = [
+        np.linspace(
+            start=o_min[idx],
+            stop=o_max[idx],
+            num=inter_areas_sorted[idx],  # It's a List[int] [axis, n_points]
+            dtype=int,
+        )
+        for idx in range(n_dims)
+    ]
 
     dims_sample_points = [
         array.flatten()
         for array in np.meshgrid(
-            np.linspace(
-                o_min[0], o_max[0], y_points_distance, dtype=int
-            ),  # For Y
-            np.linspace(
-                o_min[1], o_max[1], x_points_distance, dtype=int
-            ),  # For X
+            *nd_linespaces,
             indexing="ij",
         )
     ]
@@ -322,7 +365,6 @@ def sample_points_in_overlap(
     bounds_1: np.ndarray,
     bounds_2: np.ndarray,
     numpoints: int,
-    image_shape: Tuple,
     sample_type: Optional[str] = "random",
 ) -> np.ndarray:
     """
@@ -356,6 +398,8 @@ def sample_points_in_overlap(
     """
     sample_type = sample_type.lower()
     numpoints = int(numpoints)
+    dims_sample_points = []
+    n_dims = len(bounds_1[0])
 
     if sample_type not in ["random", "grid", "feature_extracted"]:
         raise NotImplementedError(
@@ -367,24 +411,17 @@ def sample_points_in_overlap(
             "Error in the number of points, it must be a positive integer."
         )
 
-    if len(bounds_1) == 2 and not check_image_intersection_2D(
-        bounds_1, bounds_2
-    ):
+    if n_dims == 2 and not check_image_intersection_2D(bounds_1, bounds_2):
         raise ValueError(
             """2D Images do not intersect. Please,
             check the transformation matrix."""
         )
 
-    elif len(bounds_1) == 3 and not check_image_intersection_3D(
-        bounds_1, bounds_2
-    ):
+    elif n_dims == 3 and not check_image_intersection_3D(bounds_1, bounds_2):
         raise ValueError(
             """3D Images do not intersect. Please,
             check the transformation matrix."""
         )
-
-    n_dims = len(bounds_1[0])
-    dims_sample_points = []
 
     if sample_type == "random":
         for dim_idx in range(n_dims):
@@ -396,16 +433,16 @@ def sample_points_in_overlap(
             dims_sample_points.append(random_choice)
 
     elif sample_type == "grid":
-        image_shape_len = len(image_shape)
-
-        if image_shape_len == 2:
+        if n_dims == 2:
             dims_sample_points = sample_nd_grid_points(
                 bounds_1=bounds_1, bounds_2=bounds_2, numpoints=numpoints
             )
 
-        elif image_shape_len == 3:
-            raise NotImplementedError(
-                "Sampling points in 3D has not been developed yet"
+        elif n_dims == 3:
+            dims_sample_points = sample_nd_grid_points(
+                bounds_1=bounds_1,
+                bounds_2=bounds_2,
+                numpoints=numpoints,
             )
 
         else:
@@ -442,6 +479,8 @@ def calculate_bounds(
     ------------------------
     Tuple:
         Tuple with the calculated boundaries.
+        For 2D images the boundary axis order is: Y X
+        For 3D images the boundary axis order is: Z Y X
 
     """
 
