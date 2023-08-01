@@ -536,10 +536,13 @@ def prune_points_to_fit_window(
         size inside image shape.
 
     """
+    n_dims = len(image_shape)
+    zero_coord = np.zeros((n_dims,), dtype=np.uint8)
 
     def check_window_size(nested_point: np.array) -> bool:
         """
         Map function applied over a numpy array
+        to check the window size to a point.
 
         Parameters
         ------------------------
@@ -549,14 +552,23 @@ def prune_points_to_fit_window(
         Returns
         ------------------------
         bool:
-            True if the (point (x, y) + window size)
-            is inside image shape, False otherwise.
+            True if the (point (x, y) +- window size)
+            is inside intersection image shape,
+            False otherwise.
         """
-        modified_point = nested_point + window_size
-        point_window_inside = np.less(modified_point, image_shape)
-        unique_val = np.unique(point_window_inside)
+        positive_modified_point = nested_point + window_size
+        negative_modified_point = nested_point - window_size
 
-        if len(unique_val) == 1 and unique_val[0]:
+        positive_point_window_inside = np.less_equal(
+            positive_modified_point, image_shape
+        )
+        negative_point_window_inside = np.greater_equal(
+            negative_modified_point, zero_coord
+        )
+
+        if np.all(positive_point_window_inside) and np.all(
+            negative_point_window_inside
+        ):
             return True
 
         return False
