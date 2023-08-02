@@ -1,8 +1,8 @@
 ---
 image_channel: 0
 data_type: small
-metric: SSD
+metric: ncc
 window_size: 5
 sampling_info:
   sampling_type: grid
-  numpoints: 100
+  numpoints: 200

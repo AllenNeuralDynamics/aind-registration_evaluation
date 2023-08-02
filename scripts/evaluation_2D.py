@@ -59,7 +59,7 @@ def main():
         [0, 0, 0, 1],
     ]
 
-    default_config["visualize"] = False
+    default_config["visualize"] = True
 
     print(default_config)
 

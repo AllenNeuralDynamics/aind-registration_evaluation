@@ -755,7 +755,7 @@ class SliceTracker:
 
         self.points_1 = self.axes.scatter(y=pts[0], x=pts[1], c="r", s=20)
         self.points_2 = self.axes.scatter(
-            y=sl_pts[0], x=sl_pts[1], c="g", s=20
+            y=sl_pts[0], x=sl_pts[1], c="#5DD9A7", s=20
         )
 
     def get_current_slice(self):
@@ -1057,8 +1057,6 @@ def visualize_images(
             bounds_2[0][0] :, bounds_2[0][1] :, bounds_2[0][2] :
         ] = image_2_data
 
-        fig, ax = plt.subplots()
-
         # Setting Z, Y, X positions of points within the grid
         z_points = [point[0] for point in pruned_points]
         y_points = [point[1] for point in pruned_points]
@@ -1100,7 +1098,7 @@ def visualize_images(
             linestyle="--",
         )
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(nrows=1, ncols=1)
 
         tracker = SliceTracker(
             fig_axes=ax,

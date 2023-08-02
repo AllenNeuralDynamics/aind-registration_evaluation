@@ -96,11 +96,11 @@ class EvalStitching(ArgSchemaParser):
         pruned_points = utils.prune_points_to_fit_window(
             image_1_shape, points, self.args["window_size"]
         )
+        # print(pruned_points)
 
         discarded_points_window = points.shape[0] - pruned_points.shape[0]
         LOGGER.info(
-            f"""Number of discarded points when prunning
-            points to window: {discarded_points_window}""",
+            f"Number of discarded points when prunning points to window: {discarded_points_window}",
         )
 
         # calculate metrics per images
@@ -109,7 +109,7 @@ class EvalStitching(ArgSchemaParser):
         metric_calculator = ImageMetricsFactory().create(
             image_1_data,
             image_2_data,
-            self.args["metric"],
+            self.args["metric"].casefold(),
             self.args["window_size"],
         )
 

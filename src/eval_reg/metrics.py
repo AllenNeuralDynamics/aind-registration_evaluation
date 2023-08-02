@@ -85,17 +85,17 @@ class ImageMetrics(ABC):
         self.__eps = np.finfo(self.dtype).eps  # math.e
 
         self.__metrics_acronyms = {
-            "SSD": self.mean_squared_error,
-            "SSIM": self.structural_similarity_index,
-            "MAE": self.mean_absolute_error,
-            "R2": self.r2_score,
-            "MAX_ERR": self.max_error,
-            "NCC": self.normalized_cross_correlation,
-            "MI": self.mutual_information,
-            "NMI": self.normalized_mutual_information,
-            "ISSM": self.information_theoretic_similarity,
-            "PSNR": self.peak_signal_to_noise_ratio,
-            "FSIM": self.feature_similarity_index_metric,
+            "ssd": self.mean_squared_error,
+            "ssim": self.structural_similarity_index,
+            "mae": self.mean_absolute_error,
+            "r2": self.r2_score,
+            "max_err": self.max_error,
+            "ncc": self.normalized_cross_correlation,
+            "mi": self.mutual_information,
+            "nmi": self.normalized_mutual_information,
+            "issm": self.information_theoretic_similarity,
+            "psnr": self.peak_signal_to_noise_ratio,
+            "fsim": self.feature_similarity_index_metric,
         }
 
         assert (
@@ -657,9 +657,9 @@ class ImageMetrics(ABC):
             points_per_dim = [
                 np.expand_dims(
                     np.linspace(
-                        point[idx_dim] - self.window_size,
-                        point[idx_dim] + self.window_size,
-                        2 * self.window_size + 1,
+                        start=point[idx_dim] - self.window_size,
+                        stop=point[idx_dim] + self.window_size,
+                        num=2 * self.window_size + 1,
                     ),
                     axis=0,
                 )
@@ -819,43 +819,49 @@ class LargeImageMetrics(ImageMetrics):
         point_1_windowed = windowed_points[0]
         point_2_windowed = windowed_points[1]
 
-        image_2_shape = self.image_2.shape
+        # image_2_shape = self.image_2.shape
         len_dims = len(point_1_windowed)
 
         patch_1 = None
         patch_2 = None
 
-        dims = list(
-            [
-                da.from_array(
-                    np.linspace(
-                        0, image_2_shape[idx_dim], image_2_shape[idx_dim]
-                    )
-                )
-                for idx_dim in range(len(image_2_shape))
-            ]
-        )
+        # dims = list(
+        #     [
+        #         da.from_array(
+        #             np.linspace(
+        #                 0, image_2_shape[idx_dim], image_2_shape[idx_dim]
+        #             )
+        #         )
+        #         for idx_dim in range(len(image_2_shape))
+        #     ]
+        # )
 
         if len_dims == 2:
             patch_1 = self.image_1.vindex[
                 point_1_windowed[0], point_1_windowed[1]
+            ]
+            patch_2 = self.image_2.vindex[
+                point_2_windowed[0], point_2_windowed[1]
             ]
 
         elif len_dims == 3:
             patch_1 = self.image_1.vindex[
                 point_1_windowed[0], point_1_windowed[1], point_1_windowed[2]
             ]
+            patch_2 = self.image_2.vindex[
+                point_2_windowed[0], point_2_windowed[1], point_2_windowed[2]
+            ]
         else:
             raise NotImplementedError("Only 2D or 3D dimensions are accepted")
 
         # Send patch without computing # TODO Return a dask array
-        patch_2 = delayed(scipy.interpolate.interpn)(
-            dims, self.image_2, point_2_windowed.transpose()
-        )
+        # patch_2 = delayed(scipy.interpolate.interpn)(
+        #     dims, self.image_2, point_2_windowed.transpose()
+        # )
 
-        patch_2 = da.from_delayed(
-            patch_2, shape=patch_1.shape, dtype=patch_1.dtype
-        )
+        # patch_2 = da.from_delayed(
+        #     patch_2, shape=patch_1.shape, dtype=patch_1.dtype
+        # )
 
         return patch_1, patch_2
 
@@ -887,7 +893,7 @@ class LargeImageMetrics(ImageMetrics):
 
         value_error = None
         try:
-            value_error = error.mean()
+            value_error = error.mean(axis=0)
 
             if self.compute_dask:
                 value_error = value_error.compute()
@@ -1016,44 +1022,32 @@ class LargeImageMetrics(ImageMetrics):
 
         weight = 1.0
 
-        try:
-            patch_1_mean = patch_1.mean()
+        # TODO find a way in how num and den is computed in one run
+        numerator = (
+            (weight * (patch_1 - patch_2) ** 2)
+            .sum(axis=0, dtype=self.dtype)
+            .compute()
+        )
+        denominator = (
+            (weight * (patch_1 - patch_2.mean(axis=0)) ** 2)
+            .sum(axis=0, dtype=self.dtype)
+            .compute()
+        )
 
-            numerator = da.map_blocks(
-                lambda a, b: weight * (a - b) ** 2,
-                patch_1,
-                patch_2,
-                dtype=self.dtype,
-            ).sum(axis=0, dtype=self.dtype)[0]
+        nonzero_denominator = denominator != 0
+        nonzero_numerator = numerator != 0
+        valid_score = nonzero_denominator & nonzero_numerator
 
-            denominator = da.map_blocks(
-                lambda a: weight * (a - patch_1_mean) ** 2,
-                patch_1,
-                dtype=self.dtype,
-            ).sum(axis=0, dtype=self.dtype)[0]
+        r2_scores = da.ones([patch_1.shape[1]])
+        with np.errstate(all="ignore"):
+            r2_scores[valid_score] = 1 - (
+                numerator[valid_score] / denominator[valid_score]
+            )
+            r2_scores[nonzero_numerator & ~nonzero_denominator] = 0.0
 
-            numerator = numerator.compute()
-            denominator = denominator.compute()
-
-            nonzero_denominator = denominator != 0
-            nonzero_numerator = numerator != 0
-
-            # Non-zero numerator and Non-zero denominator: use the formula
-            if nonzero_denominator & nonzero_numerator:
-                value_error = 1 - (numerator / denominator)
-
-            # Non-zero Numerator and Zero Denominator:
-            # set values to 0.0 so it does not go to Inf
-            if nonzero_numerator & ~nonzero_denominator:
-                value_error = 0.0
-
-            value_error = value_error
-
-            if self.compute_dask:
-                value_error = value_error.compute()
-
-        except ValueError:
-            value_error = None
+        value_error = r2_scores.mean(axis=0)
+        if self.compute_dask:
+            value_error = value_error.compute()
 
         return value_error
 
@@ -1641,19 +1635,19 @@ class SmallImageMetrics(ImageMetrics):
         point_1_windowed = windowed_points[0]
         point_2_windowed = windowed_points[1]
 
-        image_2_shape = self.image_2.shape
+        # image_2_shape = self.image_2.shape
         len_dims = len(point_1_windowed)
 
         patch_1 = None
         patch_2 = None
 
         # Range of values in interval for each axis
-        dims = tuple(
-            [
-                np.linspace(0, image_2_shape[idx_dim], image_2_shape[idx_dim])
-                for idx_dim in range(len(image_2_shape))
-            ]
-        )
+        # dims = tuple(
+        #     [
+        #         np.linspace(start=0, stop=image_2_shape[idx_dim], num=image_2_shape[idx_dim])
+        #         for idx_dim in range(len(image_2_shape))
+        #     ]
+        # )
 
         if len_dims == 2:
             patch_1 = self.image_1[point_1_windowed[0], point_1_windowed[1]]
@@ -1662,16 +1656,19 @@ class SmallImageMetrics(ImageMetrics):
             patch_1 = self.image_1[
                 point_1_windowed[0], point_1_windowed[1], point_1_windowed[2]
             ]
+            patch_2 = self.image_2[
+                point_2_windowed[0], point_2_windowed[1], point_2_windowed[2]
+            ]
         else:
             raise NotImplementedError("Only 2D or 3D dimensions are accepted")
 
-        try:
-            patch_2 = scipy.interpolate.interpn(
-                dims, self.image_2, point_2_windowed.transpose()
-            )
+        # try:
+        #     patch_2 = scipy.interpolate.interpn(
+        #         dims, self.image_2, point_2_windowed.transpose()
+        #     )
 
-        except ValueError:
-            return None, None
+        # except ValueError:
+        #     return None, None
 
         return patch_1, patch_2
 
