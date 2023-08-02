@@ -13,8 +13,12 @@ The input vales are:
 - Window size: For every point, we take an are equal to 2 * window_size + 1 which creates a square or cube for the two images in the same location of the intersection area.
 - Sampling info: A dictionary that contains the number of points that will be sampled in the intersection area as well as the sampling type. At this moment, we sample points randomly or in a grid.
 
+![example](https://github.com/AllenNeuralDynamics/aind-registration_evaluation/blob/main/images/example_evaluation.png?raw=true)
+
 ## Data type
 Due to the large-scale data the Allen Institute for Neural Dynamics is generating, we are lazily reading image data and computing the metrics in chunks when the data is large (this means the data can't fit in standard computers memory). In these cases, we recommend setting the data type to `large` and `small` for images that could fit in memory. Selecting this depends on your use case, resources and nature of your data.
+
+![DataType](https://github.com/AllenNeuralDynamics/aind-registration_evaluation/blob/main/images/diagram_evaluation.png?raw=true)
 
 ## Metrics
 We have the most common computer vision metrics to evaluate images. Here, we include the following metrics:
@@ -52,7 +56,18 @@ $$\begin{bmatrix}
 
 ## Window size
 This refers to how big the area around each sampled point will be. For example, in a 2D image the window size area for a given point will be:
+
 ![PointWindowSize](https://github.com/AllenNeuralDynamics/aind-registration_evaluation/blob/main/images/point_window_size.png?raw=true)
+
+The same applies for a 3D sampled point.
+
+## Sampling options
+The sampling options we have at the moment are:
+- Sampling type: This could be a grid of points located in the intersection area or points spread randomly. Options = ["grid", "random"]
+- Number of points: The approximate number of points that will be sampled in the image.
+
+## Note
+> If you want to visualize points in the images, you could activate the visualize flag the package accepts. However, make sure these images are able to fix in memory.
 
 ## Installation
 To use the software, in the root directory, run
@@ -69,7 +84,7 @@ pip install -e .[dev]
 Run with the following:
 
 ```
-python src/eval_reg/evaluate_stitching.py
+python scripts/evaluation_example.py
 ```
 
 The example_input dict at the top of the file gives an example of the inputs. If "datatype" is set to dummy, then it will create dummy data and run it on that. If it's set to "large" then it will try to read the zarr files. The code for manipulating the zarr files is still not working.

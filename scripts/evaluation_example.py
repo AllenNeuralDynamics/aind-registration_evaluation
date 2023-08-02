@@ -54,7 +54,7 @@ def main():
 
     default_config["transform_matrix"] = [
         [1, 0, 0, 0],  # Z
-        [0, 1, 0, 100],  # Y
+        [0, 1, 0, 20],  # Y
         [0, 0, 1, 0],  # X
         [0, 0, 0, 1],
     ]
