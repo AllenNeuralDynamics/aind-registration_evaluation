@@ -5,4 +5,4 @@ metric: SSD
 window_size: 5
 sampling_info:
   sampling_type: grid
-  numpoints: 200
+  numpoints: 100

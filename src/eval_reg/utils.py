@@ -84,7 +84,7 @@ def three_mult_closest(nums: List[int], target: int) -> List[int]:
     nums = sorted(nums)
     n = len(nums)
     closest = 9999
-    closest_selected = {}
+    closest_selected = {target: []}
     selected_nums = []
 
     if n <= 3:
@@ -94,8 +94,8 @@ def three_mult_closest(nums: List[int], target: int) -> List[int]:
     idx_iter = 0
 
     while middle_pos >= 0 and middle_pos <= n - 1 and idx_iter < n:
-        lower_pos = middle_pos - 1
-        higher_pos = middle_pos + 1
+        lower_pos = middle_pos
+        higher_pos = middle_pos
 
         while lower_pos >= 0 and higher_pos <= n - 1:
             mult = nums[lower_pos] * nums[middle_pos] * nums[higher_pos]
@@ -105,6 +105,10 @@ def three_mult_closest(nums: List[int], target: int) -> List[int]:
                 nums[higher_pos],
             ]
 
+            if abs(closest - target) > abs(mult - target) and mult != target:
+                closest = mult
+                closest_selected[mult] = selected_nums.copy()
+
             if mult < target:
                 higher_pos += 1
 
@@ -113,10 +117,6 @@ def three_mult_closest(nums: List[int], target: int) -> List[int]:
 
             else:
                 return selected_nums
-
-            if abs(closest - target) > abs(mult - target):
-                closest = mult
-                closest_selected[mult] = selected_nums.copy()
 
         if mult > target:
             middle_pos -= 1
@@ -175,6 +175,8 @@ def get_multiplicatives(num_points: int, mode="2d") -> Tuple[int]:
     for i in range(1, num_points):
         if num_points % i == 0 and i != 1:
             divs.append(i)
+
+    print(divs)
 
     if mode == "2d":
         new_n_points = two_mult_closest(nums=divs, target=num_points)
@@ -316,8 +318,17 @@ def sample_nd_grid_points(
         o_min.append(o_min_val)
         o_max.append(o_max_val)
 
-    multiplicatives_mode = "2d" if n_dims == 2 else "3d"
-    matrix_vals = get_multiplicatives(numpoints, mode=multiplicatives_mode)
+    # multiplicatives_mode = "2d" if n_dims == 2 else "3d"
+    # matrix_vals = get_multiplicatives(numpoints, mode=multiplicatives_mode)
+
+    num_points_axis = np.ceil(numpoints ** (1 / n_dims)).astype(np.uint8)
+    matrix_vals = [num_points_axis for i in range(n_dims)]
+
+    if np.prod(matrix_vals) != numpoints:
+        # TODO Send message with logger
+        print(
+            f"Rounding to {num_points_axis} to keep all axis with same points"
+        )
 
     # For 2D Y X area in intersection
     # For 3D Z Y X area in intersection
@@ -327,24 +338,26 @@ def sample_nd_grid_points(
         inter_areas[dim_idx] = abs(o_max[dim_idx] - o_min[dim_idx])
 
     # Sorting the areas by axis
-    inter_areas_sorted = [
-        list(val)
-        for val in sorted(
-            inter_areas.items(), key=lambda axis: axis[1], reverse=False
-        )
-    ]
+    # inter_areas_sorted = [
+    #     list(val)
+    #     for val in sorted(
+    #         inter_areas.items(), key=lambda axis: axis[1], reverse=False
+    #     )
+    # ]
 
     # Asigning incremental points to incremental intersection areas
-    for idx_dim in range(n_dims):
-        inter_areas_sorted[idx_dim][1] = matrix_vals[idx_dim]
+    # for idx_dim in range(n_dims):
+    #     inter_areas_sorted[idx_dim][1] = matrix_vals[idx_dim]
 
-    inter_areas_sorted = dict(inter_areas_sorted)
+    # inter_areas_sorted = dict(inter_areas_sorted)
 
     nd_linespaces = [
         np.linspace(
             start=o_min[idx],
             stop=o_max[idx],
-            num=inter_areas_sorted[idx],  # It's a List[int] [axis, n_points]
+            num=matrix_vals[
+                idx
+            ],  # inter_areas_sorted[idx],  # It's a List[int] [axis, n_points]
             dtype=int,
         )
         for idx in range(n_dims)
@@ -682,23 +695,30 @@ class SliceTracker:
         def search_points(points: List):
             """
             Helper function to search points
-            in a slic
+            in a slice
+
+            Parameters
+            -----------
+            points: List[List[int]]
+                Points in 3D space where
+                the 3 lists are in order
+                Z Y X
             """
 
             points_x = []
             points_y = []
 
-            for z_point_pos in range(len(points[-1])):
-                if self.idx == points[-1][z_point_pos]:
-                    points_x.append(points[0][z_point_pos])
+            for z_point_pos in range(len(points[0])):
+                if self.idx == points[0][z_point_pos]:
                     points_y.append(points[1][z_point_pos])
+                    points_x.append(points[2][z_point_pos])
 
             return points_x, points_y
 
         points_x, points_y = search_points(self.points)
         sel_points_x, sel_points_y = search_points(self.selected_points)
 
-        return [points_x, points_y], [sel_points_x, sel_points_y]
+        return [points_y, points_x], [sel_points_y, sel_points_x]
 
     def on_scroll(self, event):
         """
@@ -733,9 +753,9 @@ class SliceTracker:
             self.points_1.remove()
             self.points_2.remove()
 
-        self.points_1 = self.axes.scatter(x=pts[0], y=pts[1], c="r", s=10)
+        self.points_1 = self.axes.scatter(y=pts[0], x=pts[1], c="r", s=20)
         self.points_2 = self.axes.scatter(
-            x=sl_pts[0], y=sl_pts[1], c="b", s=10
+            y=sl_pts[0], x=sl_pts[1], c="g", s=20
         )
 
     def get_current_slice(self):
@@ -1050,11 +1070,11 @@ def visualize_images(
         selected_y_points = [point[1] for point in selected_pruned_points]
         selected_x_points = [point[2] for point in selected_pruned_points]
 
-        points = [x_points, y_points, z_points]
+        points = [z_points, y_points, x_points]
         selected_points = [
-            selected_x_points,
-            selected_y_points,
             selected_z_points,
+            selected_y_points,
+            selected_x_points,
         ]
 
         # visualize_image_3D(combined_volume, points, selected_points)

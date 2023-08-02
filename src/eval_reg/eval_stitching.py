@@ -92,13 +92,10 @@ class EvalStitching(ArgSchemaParser):
             numpoints=self.args["sampling_info"]["numpoints"],
             sample_type=self.args["sampling_info"]["sampling_type"],
         )
-        print(points, len(points))
 
         pruned_points = utils.prune_points_to_fit_window(
             image_1_shape, points, self.args["window_size"]
         )
-
-        print("Pruned: ", pruned_points, len(pruned_points))
 
         discarded_points_window = points.shape[0] - pruned_points.shape[0]
         LOGGER.info(
@@ -122,9 +119,8 @@ class EvalStitching(ArgSchemaParser):
             met = metric_calculator.calculate_metrics(
                 point=pruned_point, transform=transform
             )
-            print(f"Metric value: {met} for point {pruned_point}")
 
-            if met:
+            if met is not None:
                 selected_pruned_points.append(pruned_point)
                 metric_per_point.append(met)
 
@@ -140,14 +136,15 @@ class EvalStitching(ArgSchemaParser):
         \nDiscarded points by metric: {dscrd_pts}"""
         LOGGER.info(message)
 
-        # utils.visualize_images(
-        #     image_1_data,
-        #     image_2_data,
-        #     [bounds_1, bounds_2],
-        #     pruned_points,
-        #     selected_pruned_points,
-        #     transform,
-        # )
+        if self.args["visualize"]:
+            utils.visualize_images(
+                image_1_data,
+                image_2_data,
+                [bounds_1, bounds_2],
+                pruned_points,
+                selected_pruned_points,
+                transform,
+            )
 
 
 def get_default_config(filename: PathLike = None):

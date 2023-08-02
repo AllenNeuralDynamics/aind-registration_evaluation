@@ -1696,9 +1696,7 @@ class SmallImageMetrics(ImageMetrics):
         float
             Float with the value of the mean squeared error.
         """
-        substact = np.subtract(patch_1, patch_2, dtype=self.dtype)
-        squared_mean = np.square(substact).mean()
-        return squared_mean
+        return sk_metrics.mean_squared_error(patch_1, patch_2)
 
     def structural_similarity_index(
         self, patch_1: np.ndarray, patch_2: np.ndarray
