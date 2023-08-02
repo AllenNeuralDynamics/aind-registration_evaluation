@@ -2,7 +2,7 @@
 image_channel: 0
 data_type: small
 metric: ncc
-window_size: 5
+window_size: 10
 sampling_info:
   sampling_type: grid
   numpoints: 200
