@@ -144,7 +144,7 @@ class EvalStitching(ArgSchemaParser):
             dscrd_pts = (
                 points.shape[0] - discarded_points_window - computed_points
             )
-            message = f"""Computed metric: {metric}
+            message = f"""Computed metric: {metric_name}
             \nMean: {np.mean(metrics_results[metric_name]["point_metric"])}
             \nStd: {np.std(metrics_results[metric_name]["point_metric"])}
             \nNumber of calculated points: {computed_points}

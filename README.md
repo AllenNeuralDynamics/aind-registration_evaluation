@@ -63,7 +63,7 @@ The same applies for a 3D sampled point.
 
 ## Sampling options
 The sampling options we have at the moment are:
-- Sampling type: This could be a grid of points located in the intersection area or points spread randomly. Options = ["grid", "random"]
+- Sampling type: This could be a grid of points located in the intersection area or points spread randomly. `Options = ["grid", "random"]`
 - Number of points: The approximate number of points that will be sampled in the image.
 
 ## Note

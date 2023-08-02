@@ -100,7 +100,7 @@ class ImageMetrics(ABC):
 
         assert (
             self.__metric_type in self.__metrics_acronyms
-        ), "This metric has not been implemented yet"
+        ), f"This metric has not been implemented yet {self.__metric_type}"
 
     @property
     def image_1(self) -> ArrayLike:

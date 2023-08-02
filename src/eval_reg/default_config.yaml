@@ -5,6 +5,10 @@ metrics:
   - ssd
   - ssim
   - ncc
+  - r2
+  - mi
+  - psnr
+  - mae
 window_size: 20
 sampling_info:
   sampling_type: grid
