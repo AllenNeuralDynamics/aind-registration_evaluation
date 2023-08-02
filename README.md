@@ -52,7 +52,7 @@ $$\begin{bmatrix}
 
 ## Window size
 This refers to how big the area around each sampled point will be. For example, in a 2D image the window size area for a given point will be:
-![PointWindowSize](https://raw.githubusercontent.com/AllenNeuralDynamics/aind-registration_evaluation/main/images/point_window_size.png)
+![PointWindowSize](https://raw.githubusercontent.com/AllenNeuralDynamics/aind-registration_evaluation/blob/main/images/point_window_size.png)
 
 ## Installation
 To use the software, in the root directory, run
