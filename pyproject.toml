@@ -27,7 +27,8 @@ dependencies = [
   'pims',
   'tifffile',
   'phasepack',
-  'pyfftw'
+  'pyfftw',
+  'natsort'
 ]
 
 [project.optional-dependencies]

@@ -7,7 +7,7 @@ import sys
 
 import marshmallow as mm
 from argschema import ArgSchema
-from argschema.fields import Int, List, Nested, Str
+from argschema.fields import Boolean, Int, List, Nested, Str
 from argschema.schemas import DefaultSchema
 from marshmallow import fields
 
@@ -127,4 +127,10 @@ class EvalRegSchema(ArgSchema):
         SamplingArgsSchema,
         required=False,
         description="schema for sampling points",
+    )
+
+    visualize = Boolean(
+        required=False,
+        metadata={"description": "True to visualize images, False otherwise"},
+        dump_default=False,
     )
