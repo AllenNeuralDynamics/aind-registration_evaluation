@@ -1,5 +1,6 @@
-import os
-
+"""
+Evaluation example with 2D and 3D images
+"""
 from xml_parser import TeraStitcherXMLParser
 
 from eval_reg.eval_stitching import EvalStitching, get_default_config
@@ -35,15 +36,15 @@ def main():
     )
 
     default_config["transform_matrix"] = [
-        [1, 0, -100],  # Y
-        [0, 1, 1900],  # X
+        [1, 0, -10],  # Y
+        [0, 1, 1800],  # X
         [0, 0, 1],
     ]
 
     # BASE_PATH = "/Users/camilo.laiton/Documents/Stitching datasets/SmartSPIM_AK030_sample/"
 
-    default_config["image_1"] = os.path.abspath(BASE_PATH + "block_10.tif")
-    default_config["image_2"] = os.path.abspath(BASE_PATH + "block_10.tif")
+    # default_config["image_1"] = os.path.abspath(BASE_PATH + "block_10.tif")
+    # default_config["image_2"] = os.path.abspath(BASE_PATH + "block_10.tif")
 
     # default_config["image_1"] = os.path.abspath(
     #     BASE_PATH + "test_black_3d_image.tiff"
@@ -52,12 +53,12 @@ def main():
     #     BASE_PATH + "test_black_3d_image.tiff"
     # )
 
-    default_config["transform_matrix"] = [
-        [1, 0, 0, 0],  # Z
-        [0, 1, 0, 20],  # Y
-        [0, 0, 1, 0],  # X
-        [0, 0, 0, 1],
-    ]
+    # default_config["transform_matrix"] = [
+    #     [1, 0, 0, 0],  # Z
+    #     [0, 1, 0, 0],  # Y
+    #     [0, 0, 1, 0],  # X
+    #     [0, 0, 0, 1],
+    # ]
 
     default_config["visualize"] = True
 

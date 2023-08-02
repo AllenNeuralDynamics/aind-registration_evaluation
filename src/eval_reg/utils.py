@@ -176,8 +176,6 @@ def get_multiplicatives(num_points: int, mode="2d") -> Tuple[int]:
         if num_points % i == 0 and i != 1:
             divs.append(i)
 
-    print(divs)
-
     if mode == "2d":
         new_n_points = two_mult_closest(nums=divs, target=num_points)
 
@@ -826,6 +824,7 @@ def visualize_images(
     pruned_points: ArrayLike,
     selected_pruned_points: ArrayLike,
     transform: np.matrix,
+    metric_name: str,
 ) -> None:
     """
     Function that plots an image to help visualize the
@@ -851,6 +850,9 @@ def visualize_images(
 
     transform: np.matrix
         Transformation matrix applied to the images
+
+    metric_name: str
+        Metric name for the set of points
     """
 
     def generate_new_boundaries():
@@ -994,6 +996,8 @@ def visualize_images(
 
         fig, ax = plt.subplots()
 
+        fig.suptitle(f"Metric: {metric_name}", fontsize=16)
+
         # Setting X,Y positions of points within the grid
         y_points = [point[0] for point in pruned_points]
         x_points = [point[1] for point in pruned_points]
@@ -1099,6 +1103,7 @@ def visualize_images(
         )
 
         fig, ax = plt.subplots(nrows=1, ncols=1)
+        fig.suptitle(f"Metric: {metric_name}", fontsize=16)
 
         tracker = SliceTracker(
             fig_axes=ax,

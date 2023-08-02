@@ -625,9 +625,7 @@ class ImageMetrics(ABC):
         """
         pass
 
-    def calculate_metrics(
-        self, point: np.array, transform: np.matrix
-    ) -> float:
+    def calculate_metric(self, point: np.array, transform: np.matrix) -> float:
         """
         Method to calculate the metric over a point
         and using a transformation matrix.
@@ -815,7 +813,6 @@ class LargeImageMetrics(ImageMetrics):
             Tuple with the patches.
 
         """
-
         point_1_windowed = windowed_points[0]
         point_2_windowed = windowed_points[1]
 
@@ -1651,6 +1648,7 @@ class SmallImageMetrics(ImageMetrics):
 
         if len_dims == 2:
             patch_1 = self.image_1[point_1_windowed[0], point_1_windowed[1]]
+            patch_2 = self.image_2[point_2_windowed[0], point_2_windowed[1]]
 
         elif len_dims == 3:
             patch_1 = self.image_1[

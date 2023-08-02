@@ -96,7 +96,6 @@ class EvalStitching(ArgSchemaParser):
         pruned_points = utils.prune_points_to_fit_window(
             image_1_shape, points, self.args["window_size"]
         )
-        # print(pruned_points)
 
         discarded_points_window = points.shape[0] - pruned_points.shape[0]
         LOGGER.info(
@@ -104,47 +103,64 @@ class EvalStitching(ArgSchemaParser):
         )
 
         # calculate metrics per images
-        metric_per_point = []
+        metrics_results = {}
+        metrics = []
 
-        metric_calculator = ImageMetricsFactory().create(
-            image_1_data,
-            image_2_data,
-            self.args["metric"].casefold(),
-            self.args["window_size"],
-        )
-
-        selected_pruned_points = []
+        for metric in self.args["metrics"]:
+            m = metric.casefold()
+            metrics_results[m] = {"selected_points": [], "point_metric": []}
+            metrics.append(
+                ImageMetricsFactory().create(
+                    image_1_data,
+                    image_2_data,
+                    m,
+                    self.args["window_size"],
+                )
+            )
 
         for pruned_point in pruned_points:
-            met = metric_calculator.calculate_metrics(
-                point=pruned_point, transform=transform
-            )
+            for metric in metrics:
+                metric_name = metric.metric_type
+                point_metric = metric.calculate_metric(
+                    point=pruned_point, transform=transform
+                )
 
-            if met is not None:
-                selected_pruned_points.append(pruned_point)
-                metric_per_point.append(met)
+                if point_metric is not None:
+                    metrics_results[metric_name]["point_metric"].append(
+                        point_metric
+                    )
+                    metrics_results[metric_name]["selected_points"].append(
+                        pruned_point
+                    )
 
         # compute statistics
-        metric = self.args["metric"]
-        computed_points = len(metric_per_point)
+        for metric in metrics:
+            metric_name = metric.metric_type
 
-        dscrd_pts = points.shape[0] - discarded_points_window - computed_points
-        message = f"""Computed metric: {metric}
-        \nMean: {np.mean(metric_per_point)}
-        \nStd: {np.std(metric_per_point)}
-        \nNumber of calculated points: {computed_points}
-        \nDiscarded points by metric: {dscrd_pts}"""
-        LOGGER.info(message)
-
-        if self.args["visualize"]:
-            utils.visualize_images(
-                image_1_data,
-                image_2_data,
-                [bounds_1, bounds_2],
-                pruned_points,
-                selected_pruned_points,
-                transform,
+            computed_points = len(
+                metrics_results[metric_name]["selected_points"]
             )
+
+            dscrd_pts = (
+                points.shape[0] - discarded_points_window - computed_points
+            )
+            message = f"""Computed metric: {metric}
+            \nMean: {np.mean(metrics_results[metric_name]["point_metric"])}
+            \nStd: {np.std(metrics_results[metric_name]["point_metric"])}
+            \nNumber of calculated points: {computed_points}
+            \nDiscarded points by metric: {dscrd_pts}"""
+            LOGGER.info(message)
+
+            if self.args["visualize"]:
+                utils.visualize_images(
+                    image_1_data,
+                    image_2_data,
+                    [bounds_1, bounds_2],
+                    pruned_points,
+                    metrics_results[metric_name]["selected_points"],
+                    transform,
+                    metric_name,
+                )
 
 
 def get_default_config(filename: PathLike = None):

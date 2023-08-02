@@ -9,7 +9,7 @@ import marshmallow as mm
 from argschema import ArgSchema
 from argschema.fields import Boolean, Int, List, Nested, Str
 from argschema.schemas import DefaultSchema
-from marshmallow import fields
+from marshmallow import fields, validate
 
 
 class InputImage(fields.Str):
@@ -100,10 +100,14 @@ class EvalRegSchema(ArgSchema):
         dump_default="small",
     )
 
-    metric = Str(
+    metrics = List(
+        Str(),
         required=True,
-        metadata={"description": "SSD / NCC"},
-        dump_default="large",
+        metadata={
+            "description": "List of metrics that will be applied to the data"
+        },
+        cli_as_single_argument=True,
+        validate=validate.Length(min=1),
     )
 
     window_size = Int(
