@@ -66,6 +66,11 @@ The sampling options we have at the moment are:
 - Sampling type: This could be a grid of points located in the intersection area or points spread randomly. `Options = ["grid", "random"]`
 - Number of points: The approximate number of points that will be sampled in the image.
 
+## Available image formats
+The available image formats at the moment are:
+- Zarr
+- Tiff
+
 ## Note
 > If you want to visualize points in the images, you could activate the visualize flag the package accepts. However, make sure these images are able to fix in memory.
 
@@ -87,7 +92,7 @@ Run with the following:
 python scripts/evaluation_example.py
 ```
 
-The example_input dict at the top of the file gives an example of the inputs. If "datatype" is set to dummy, then it will create dummy data and run it on that. If it's set to "large" then it will try to read the zarr files. The code for manipulating the zarr files is still not working.
+The example_input dict at the top of the file gives an example of the inputs. If "datatype" is set to dummy, then it will create dummy data and run it on that. If it's set to "large" then it will try to read the zarr files.
 
 ## Contributing
 
