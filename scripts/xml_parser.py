@@ -56,8 +56,8 @@ class TeraStitcherXMLParser:
 
         # Terastitcher string reference relation
         self.terastitcher_str_reference = {
-            "V": ["X", 1],
-            "H": ["Y", 2],
+            "H": ["X", 1],
+            "V": ["Y", 2],
             "D": ["Z", 3],
         }
 
@@ -104,6 +104,7 @@ class TeraStitcherXMLParser:
         # Mapping reference system
         refs = {}
         for ref, val in teras_dict["TeraStitcher"]["ref_sys"].items():
+
             val = int(val)
             negative = ""
             if val < 0:
@@ -199,7 +200,11 @@ class TeraStitcherXMLParser:
 
         return stacks
 
-    def parse_terastitcher_xml(self, teras_dict: dict) -> dict:
+    def parse_terastitcher_xml(
+        self,
+        xml_path:PathLike,
+        encoding: str="utf-8"
+    ) -> dict:        
         """
         Parses the terastitcher XML file
 
@@ -213,11 +218,13 @@ class TeraStitcherXMLParser:
         --------------
         Dictionary with the parsed terastitcher xml
         """
+        teras_dict = TeraStitcherXMLParser.parse_xml(xml_path, encoding)
+
         stitch_dict = {}
 
         stitch_dict["dataset_path"] = teras_dict["TeraStitcher"]["stacks_dir"][
             "@value"
-        ].split("/")[-3]
+        ]
         refs, voxels, origin = self.__map_terastitcher_volume_info(teras_dict)
 
         # Getting important info to identify dataset

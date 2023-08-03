@@ -1,7 +1,6 @@
 """
 Evaluation example with 2D and 3D images
 """
-from xml_parser import TeraStitcherXMLParser
 
 from eval_reg.eval_stitching import EvalStitching, get_default_config
 
@@ -11,16 +10,6 @@ def main():
     Main function to test the evaluation performance
     """
     # Get same configuration from yaml file to apply it over a dataset
-
-    # flake8: noqa: E501
-    # merge_xml_ak030 = "/Users/camilo.laiton/Documents/Stitching datasets/SmartSPIM_AK030_sample/xml_merging_Ex_488_Em_525.xml"
-
-    # parsed_xml = TeraStitcherXMLParser().parse_xml(xml_path=merge_xml_ak030)
-    # parsed_xml = TeraStitcherXMLParser().parse_terastitcher_xml(
-    #     teras_dict=parsed_xml
-    # )
-
-    # print(parsed_xml)
 
     default_config = get_default_config()
 
