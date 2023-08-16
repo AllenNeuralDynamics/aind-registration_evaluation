@@ -9,9 +9,7 @@ from typing import Any, List, Optional, Tuple, Type, Union
 import cv2
 import dask.array as da
 import numpy as np
-import scipy
 import sklearn.metrics as sk_metrics
-from dask import delayed
 from phasepack import phasecong
 from skimage import metrics
 
@@ -1641,7 +1639,11 @@ class SmallImageMetrics(ImageMetrics):
         # Range of values in interval for each axis
         # dims = tuple(
         #     [
-        #         np.linspace(start=0, stop=image_2_shape[idx_dim], num=image_2_shape[idx_dim])
+        #         np.linspace(
+        #           start=0,
+        #           stop=image_2_shape[idx_dim],
+        #           num=image_2_shape[idx_dim]
+        #         )
         #         for idx_dim in range(len(image_2_shape))
         #     ]
         # )

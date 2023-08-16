@@ -25,7 +25,7 @@ def main():
     )
 
     default_config["transform_matrix"] = [
-        [1, 0, -17],  # Y -17
+        [1, 0, 0],  # Y -17
         [0, 1, 1800],  # X 1800
         [0, 0, 1],
     ]

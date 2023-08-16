@@ -3,12 +3,6 @@ image_channel: 0
 data_type: small
 metrics:
   - ssd
-  - ssim
-  - ncc
-  - r2
-  - mi
-  - psnr
-  - mae
 window_size: 20
 sampling_info:
   sampling_type: grid
