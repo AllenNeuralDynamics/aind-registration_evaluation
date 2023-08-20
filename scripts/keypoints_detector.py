@@ -3,10 +3,8 @@ from typing import List, Tuple
 
 import numpy as np
 import tifffile as tif
-import torch
 import zarr
 from matplotlib import pyplot as plt
-from matplotlib.pyplot import figure
 from scipy.ndimage import gaussian_filter, gaussian_laplace, maximum_filter
 from skimage.feature import peak_local_max
 
@@ -305,7 +303,12 @@ def kd_max_min_local_points(
 
 
 def kd_max_energy_points(
-    image, sigma, maximum_filter_size, pad_width, max_relative_threshold=0.2
+    image,
+    sigma,
+    maximum_filter_size,
+    pad_width,
+    max_relative_threshold=0.2,
+    n_keypoints=100,
 ):
     image_gaussian_laplaced = gaussian_laplace(
         input=image, sigma=sigma, mode="reflect"
@@ -324,6 +327,7 @@ def kd_max_energy_points(
         image=image_gaussian_laplaced,
         min_distance=maximum_filter_size * 2,
         threshold_rel=max_relative_threshold,
+        num_peaks=n_keypoints,
     )
 
     return np.array(max_energy_points, dtype=int), image_gaussian_laplaced
@@ -497,7 +501,7 @@ def kd_fft_energy_keypoints(
     sigma=9,
     max_relative_threshold=0.2,
     overlap_threshold=0.3,
-    n_keypoints=None,
+    n_keypoints=100,
 ):
     inversed_fft_image = kd_pad_fft_buterworth(image, pad_width=pad_width)
     maximum_filter_size = pad_width // 4
@@ -508,6 +512,7 @@ def kd_fft_energy_keypoints(
         maximum_filter_size=maximum_filter_size,
         pad_width=pad_width,
         max_relative_threshold=max_relative_threshold,
+        n_keypoints=n_keypoints,
     )
 
     print("Identified min max points: ", len(energy_points))
@@ -1200,15 +1205,6 @@ def test_fft_max_min_keypoints(img_1, img_2):
     plt.show()
 
 
-def compute_distance(feat_1, feat_2, cartesian_1, cartesian_2):
-    feat_dif = feat_1 - feat_2
-    dist = (
-        np.power(feat_dif, 2).sum() + np.abs(cartesian_1 - cartesian_2).sum()
-    )
-
-    return dist
-
-
 def compute_feature_space_distances(
     features_1: Tuple[np.array],
     features_2: Tuple[np.array],
@@ -1228,8 +1224,14 @@ def compute_feature_space_distances(
             features_2[feature_axis] - features_1[feature_axis][feat_idx]
         )
         feat_dif = np.power(feat_dif, 2).sum(axis=1).flatten()
-        loc_dif = features_2[cart_axis] - features_1[cart_axis][feat_idx]
-        loc_dif = np.abs(loc_dif).sum(axis=1).flatten()
+        loc_dif = np.sqrt(
+            np.sum(
+                np.power(
+                    features_2[cart_axis] - features_1[cart_axis][feat_idx], 2
+                ),
+                axis=-1,
+            )
+        )
 
         # Difference in feature space and cartesian location
         distance = feat_dif + loc_dif
@@ -1239,11 +1241,12 @@ def compute_feature_space_distances(
     return feature_distances
 
 
-def generate_key_features_per_img2d(img_2d):
+def generate_key_features_per_img2d(img_2d, n_keypoints):
     pad_width = np.min(img_2d.shape) // 6
     img_2d_keypoints_energy, img_response = kd_fft_energy_keypoints(
         image=img_2d,
         pad_width=pad_width,
+        n_keypoints=n_keypoints,
     )
 
     dy_val, dx_val = derivate_image_axis(
@@ -1299,11 +1302,38 @@ def generate_key_features_per_img2d(img_2d):
     }
 
 
-def get_pairs_from_distances(distances: np.array, response_img=None):
+def get_pairs_from_distances(distances: np.array, delete_points=True):
     # Distances is an array NxM
     pairs = {}
-    for dis_idx in range(distances.shape[0]):
-        pairs[dis_idx] = distances[dis_idx].argmin()
+    right_assigned_points = {}
+
+    for left_key_idx in range(distances.shape[0]):
+        right_min_idx = distances[left_key_idx].argmin()
+        right_min_distance = distances[left_key_idx][right_min_idx]
+
+        old_assignment = (
+            right_assigned_points.get(right_min_idx) if delete_points else None
+        )
+
+        if (
+            old_assignment is not None
+            and old_assignment["distance"] > right_min_distance
+        ):
+            old_left_point = old_assignment["point_idx"]
+            del pairs[old_left_point]
+
+            pairs[left_key_idx] = right_min_idx
+            right_assigned_points[right_min_idx] = {
+                "point_idx": left_key_idx,
+                "distance": right_min_distance,
+            }
+
+        elif old_assignment is None:
+            pairs[left_key_idx] = right_min_idx
+            right_assigned_points[right_min_idx] = {
+                "point_idx": left_key_idx,
+                "distance": right_min_distance,
+            }
 
     return pairs
 
@@ -1433,8 +1463,8 @@ def plot_matches(
             textcoords="offset points",
             xytext=(0, 4),
             ha="center",
-            fontsize=6,
-            color="black",
+            fontsize=8,
+            color=color,
         )
 
         ax.annotate(
@@ -1443,20 +1473,56 @@ def plot_matches(
             textcoords="offset points",
             xytext=(0, 4),
             ha="center",
-            fontsize=6,
-            color="black",
+            fontsize=8,
+            color=color,
         )
 
 
 def test_fft_energy_keypoints(img_1, img_2):
-    img_1_dict = generate_key_features_per_img2d(img_1)
-    img_2_dict = generate_key_features_per_img2d(img_2)
+    n_keypoints = 200
+    img_1_dict = generate_key_features_per_img2d(
+        img_1, n_keypoints=n_keypoints
+    )
+    img_2_dict = generate_key_features_per_img2d(
+        img_2, n_keypoints=n_keypoints
+    )
+
+    feature_vector_img_1 = (img_1_dict["features"], img_1_dict["keypoints"])
+    feature_vector_img_2 = (img_2_dict["features"], img_2_dict["keypoints"])
+
+    distances = compute_feature_space_distances(
+        feature_vector_img_1, feature_vector_img_2
+    )
+
+    point_matches = get_pairs_from_distances(
+        distances=distances, delete_points=True
+    )
+
     print(
         f"N keypoints img_1: {img_1_dict['keypoints'].shape} img_2: {img_2_dict['keypoints'].shape}"
     )
 
     # Showing only points
     # comparison img1 filters
+    print("\n Keypoint confidence img 1")
+    for key_idx in range(len(img_1_dict["keypoints"])):
+        print(
+            f"Confidence for point {key_idx} is: ",
+            img_1_dict["response_img"][
+                img_1_dict["keypoints"][key_idx][0],
+                img_1_dict["keypoints"][key_idx][1],
+            ],
+        )
+
+    print("\n Keypoint confidence img 2")
+    for key_idx in range(len(img_2_dict["keypoints"])):
+        print(
+            f"Confidence for point {key_idx} is: ",
+            img_2_dict["response_img"][
+                img_2_dict["keypoints"][key_idx][0],
+                img_2_dict["keypoints"][key_idx][1],
+            ],
+        )
 
     f, axarr = plt.subplots(1, 2)
     f.suptitle("Image 1", fontsize=20)
@@ -1528,14 +1594,31 @@ def test_fft_energy_keypoints(img_1, img_2):
     plt.tight_layout()
     plt.show()
 
-    feature_vector_img_1 = (img_1_dict["features"], img_1_dict["keypoints"])
-    feature_vector_img_2 = (img_2_dict["features"], img_2_dict["keypoints"])
+    f, axarr = plt.subplots(1, 1, figsize=(10, 5))
+    f.suptitle("Matched points", fontsize=20)
+    # Set titles and labels
+    axarr.set_xlabel("X")
+    axarr.set_ylabel("Y")
 
-    distances = compute_feature_space_distances(
-        feature_vector_img_1, feature_vector_img_2
+    idxs1, idxs2 = list(point_matches.keys()), list(point_matches.values())
+    matches = np.column_stack((idxs1, idxs2))
+
+    plot_matches(
+        ax=axarr,
+        image1=img_1,
+        image2=img_2,
+        keypoints1=img_1_dict["keypoints"],
+        keypoints2=img_2_dict["keypoints"],
+        keypoints_color="red",
+        matches=matches,
+        matches_color="red",
+        only_matches=False,
     )
 
-    point_matches = get_pairs_from_distances(distances)
+    plt.tight_layout()
+
+    # Show the plot
+    plt.show()
 
     f, axarr = plt.subplots(1, 1, figsize=(10, 5))
     f.suptitle("Matched points", fontsize=20)
