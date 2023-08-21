@@ -6,189 +6,15 @@ intersection areas
 from typing import List, Optional, Tuple
 
 import numpy as np
-from natsort import natsorted
+from scipy.ndimage import gaussian_filter, gaussian_laplace, maximum_filter
+from skimage.feature import peak_local_max
 
 from aind_registration_evaluation._shared.types import ArrayLike
 from aind_registration_evaluation.util.intersection import (
-    check_image_intersection_2D, check_image_intersection_3D)
+    check_image_intersection_2D, check_image_intersection_3D,
+    kd_compute_bboxs_cubes, kd_non_max_suppression)
 
-
-def two_mult_closest(nums: List[int], target=int) -> List[int]:
-    """
-    Finds the closest two numbers from a list of
-    numbers that multiply to a target
-
-    Parameters
-    ----------
-    nums: List[int]
-        List of nums from where we
-        will find the two closests
-
-    target: int
-        Multiplicative target
-
-    Returns
-    ----------
-    List[int]
-        List contains a list of
-        the two numbers that were found
-    """
-    nums = sorted(nums)
-    nLimit = len(nums)
-
-    if nLimit == 2:
-        return [nums[0], nums[1]]
-
-    elif nLimit <= 1:
-        raise ValueError(
-            f"Please, check the divisors to multiply. Received: {nums}"
-        )
-
-    left = nLimit // 2
-    right = nLimit // 2
-
-    while left >= 0 and right <= nLimit - 1:
-        mult = nums[left] * nums[right]
-        if mult == target:
-            return [nums[left], nums[right]]
-
-        elif mult < target:
-            right += 1
-        else:
-            left -= 1
-
-    return [nums[left], nums[right]]
-
-
-def three_mult_closest(nums: List[int], target: int) -> List[int]:
-    """
-    Finds the closest three numbers from
-    a list of numbers that multiply to
-    a target
-
-    Parameters
-    ----------
-    nums: List[int]
-        List of nums from where we
-        will find the two closests
-
-    target: int
-        Multiplicative target
-
-    Returns
-    ----------
-    List[int]
-        List contains a list of
-        the two numbers that were found
-    """
-
-    nums = sorted(nums)
-    n = len(nums)
-    closest = 9999
-    closest_selected = {target: []}
-    selected_nums = []
-
-    if n <= 3:
-        return nums
-
-    middle_pos = n // 2
-    idx_iter = 0
-
-    while middle_pos >= 0 and middle_pos <= n - 1 and idx_iter < n:
-        lower_pos = middle_pos
-        higher_pos = middle_pos
-
-        while lower_pos >= 0 and higher_pos <= n - 1:
-            mult = nums[lower_pos] * nums[middle_pos] * nums[higher_pos]
-            selected_nums = [
-                nums[lower_pos],
-                nums[middle_pos],
-                nums[higher_pos],
-            ]
-
-            if abs(closest - target) > abs(mult - target) and mult != target:
-                closest = mult
-                closest_selected[mult] = selected_nums.copy()
-
-            if mult < target:
-                higher_pos += 1
-
-            elif mult > target:
-                lower_pos -= 1
-
-            else:
-                return selected_nums
-
-        if mult > target:
-            middle_pos -= 1
-
-        else:
-            middle_pos += 1
-
-        idx_iter += 1
-
-    indices = natsorted(closest_selected)
-
-    return closest_selected[indices[0]]
-
-
-def get_multiplicatives(num_points: int, mode="2d") -> Tuple[int]:
-    """
-    Gets middle multiplicative divisors of a set of points.
-    Helper function used to build the grid of points.
-
-    Parameters
-    ------------------------
-
-    num_points: int
-        Number of points that will be sampled in the
-        intersection image as a grid.
-
-    mode: str
-        Mode to return number of multiplicatives
-        that sum up to num_points value.
-        Default: "2d". Possible options ["2d", "3d"]
-
-    Raises
-    ------------------------
-    ValueError:
-        In situations where num_points is negative or zero
-
-    NotImplementedError:
-        In siuations where the mode is not available
-
-    Returns
-    ------------------------
-    Tuple:
-        Middle multiplicative divisors of the set of
-        points to be displayed as a grid.
-    """
-    mode = mode.casefold()
-
-    if num_points <= 0:
-        raise ValueError("Please, check the number of points.")
-
-    if mode not in ["2d", "3d"]:
-        raise NotImplementedError(f"Mode {mode} has not been implemented")
-
-    divs = []
-
-    for i in range(1, num_points):
-        if num_points % i == 0 and i != 1:
-            divs.append(i)
-
-    if mode == "2d":
-        new_n_points = two_mult_closest(nums=divs, target=num_points)
-
-    else:
-        new_n_points = three_mult_closest(nums=divs, target=num_points)
-
-    closest_points = np.prod(np.array(new_n_points))
-
-    if closest_points != num_points:
-        print(f"Setting new number of points to {closest_points}")
-
-    return new_n_points
+from .utils import kd_pad_fft_buterworth
 
 
 def sample_nd_grid_points(
@@ -389,70 +215,413 @@ def sample_points_in_overlap(
     return dims_sample_points
 
 
-def prune_points_to_fit_window(
-    image_shape: Tuple, points: np.array, window_size: int
-) -> np.array:
+def kd_max_min_local_points(
+    image,
+    maximum_filter_size,
+    pad_width=0,
+    max_relative_threshold=0.2,
+    min_relative_threshold=0.2,
+    n_keypoints=100,
+):
+    image_max_filter = maximum_filter(image, size=maximum_filter_size)
+
+    if pad_width > 0:
+        pad_img_shape = image_max_filter.shape
+        slices = tuple(
+            [
+                slice(pad_width, pad_shape - pad_width)
+                for pad_shape in pad_img_shape
+            ]
+        )
+
+        image_max_filter = image_max_filter[slices]
+
+    # Getting local max points
+    maxima_coordinates = peak_local_max(
+        image=image_max_filter,
+        min_distance=maximum_filter_size * 2,
+        threshold_rel=max_relative_threshold,
+        num_peaks=n_keypoints,
+    )
+
+    # Getting local minima points
+    minima_coordinates = peak_local_max(
+        image=-image_max_filter,
+        min_distance=maximum_filter_size * 2,
+        threshold_rel=min_relative_threshold,
+        num_peaks=n_keypoints,
+    )
+
+    return maxima_coordinates, minima_coordinates, image_max_filter
+
+
+def kd_max_energy_points(
+    image: np.array,
+    sigma: int,
+    maximum_filter_size: int,
+    pad_width: Optional[int] = 0,
+    max_relative_threshold: Optional[float] = 0.2,
+    n_keypoints: Optional[int] = 100,
+):
+    image_gaussian_laplaced = gaussian_laplace(
+        input=image, sigma=sigma, mode="reflect"
+    )
+
+    if pad_width > 0:
+        pad_img_shape = image_gaussian_laplaced.shape
+        slices = tuple(
+            [slice(pad_width, shape - pad_width) for shape in pad_img_shape]
+        )
+
+        image_gaussian_laplaced = image_gaussian_laplaced[slices]
+
+    # Getting local max points
+    max_energy_points = peak_local_max(
+        image=image_gaussian_laplaced,
+        min_distance=maximum_filter_size * 2,
+        threshold_rel=max_relative_threshold,
+        num_peaks=n_keypoints,
+    )
+
+    return np.array(max_energy_points, dtype=int), image_gaussian_laplaced
+
+
+def kd_fft_keypoints(
+    image,
+    pad_width=0,
+    max_relative_threshold=0.2,
+    min_relative_threshold=0.05,
+    overlap_threshold=0.3,
+    n_keypoints=100,
+):
+    inversed_fft_image = kd_pad_fft_buterworth(image, pad_width=pad_width)
+
+    maximum_filter_size = pad_width // 4
+    max_points, min_points, response_img = kd_max_min_local_points(
+        inversed_fft_image,
+        maximum_filter_size=maximum_filter_size,
+        pad_width=pad_width,
+        max_relative_threshold=max_relative_threshold,
+        min_relative_threshold=min_relative_threshold,
+        n_keypoints=n_keypoints,
+    )
+
+    print("Identified min max points: ", len(max_points), len(min_points))
+
+    # Computing bboxs based on window size = pad_width
+    max_bboxs = kd_compute_bboxs_cubes(
+        max_points, pad_width, response_img.shape
+    )
+    min_bboxs = kd_compute_bboxs_cubes(
+        min_points, pad_width, response_img.shape
+    )
+
+    # Non-max suppression with created bboxs
+    idxs_pruned_max_bboxs = kd_non_max_suppression(
+        max_bboxs, overlap_threshold
+    )
+    idxs_pruned_min_bboxs = kd_non_max_suppression(
+        min_bboxs, overlap_threshold
+    )
+
+    print(
+        "Idxs pruned max min: ", idxs_pruned_max_bboxs, idxs_pruned_min_bboxs
+    )
+
+    pruned_max_points = max_points.copy()
+    pruned_min_points = min_points.copy()
+
+    # Getting non-max prunned points
+    if len(idxs_pruned_max_bboxs):
+        pruned_max_points = max_points[idxs_pruned_max_bboxs]
+
+    if len(idxs_pruned_min_bboxs):
+        pruned_min_points = min_points[idxs_pruned_min_bboxs]
+
+    print(
+        "Identified min max points after suppression: ",
+        len(pruned_max_points),
+        len(pruned_min_points),
+    )
+
+    return (
+        np.concatenate((pruned_max_points, pruned_min_points), axis=0),
+        response_img,
+    )
+
+
+def kd_fft_energy_keypoints(
+    image: np.ndarray,
+    pad_width: Optional[int] = 0,
+    sigma: Optional[int] = 9,
+    max_relative_threshold: Optional[float] = 0.2,
+    overlap_threshold: Optional[float] = 0.3,
+    n_keypoints: Optional[int] = 100,
+) -> Tuple[np.array]:
     """
-    Checks if generated points can be used for metric
-    evaluation in the specified window size
-    given a set of points and an image shape.
+    Computes the k-dimensional fft energy-based
+    keypoint feature selection. This approach
+    is organized as follows:
+
+    1. Use padding. For now, it's only zero padding but we could apply other types of padding.
+    2. Fast-Fourier Transform for the given image.
+    3. Butterworth filter in frecuency domain.
+    4. Inverse Fast-Fourier Transform to the FFT'd signal.
+    5. Get the energy map using laplacian of gaussian.
+    6. Unpad image and get local maximas and minimas from the images.
+    7. Compute bounding boxes based on a window_size equal to padding size
+    7. Use non-maxima suppression to prune identified points (created bboxs) in local maximas and minimas for both images.
 
     Parameters
-    ------------------------
-    image_shape: Tuple
-        Image shape
+    -----------
+    image: np.ndarray
+        2D or 3D image used to get
+        the keypoints
 
-    points: np.array
-        Sample points in an overlap region given two
-        images using a transformation matrix
+    pad_width: Optional[int]
+        Pad width applied on the image
+        to avoid non-linear filtering
+        artifacts.
+        Default: 0
 
-    window_size: int
-        Window size applied over each axis
+    sigma: Optional[int]
+        Gaussian sigma for the laplacian
+        of gaussian
+        Default: 9
+
+    max_relative_threshold: Optional[float]
+        Relative threshold for the image signal
+        to avoid sampling in areas where we have
+        no signal.
+        f = max(image) * max_relative_threshold
+        Default: 0.2
+
+    overlap_threshold: Optional[float]
+        Relative overlap threshold for the
+        bounding boxes. This is used in the
+        kd non-maxima supression.
+        Default: 0.3
+
+    n_keypoints: Optional[int]
+        Number of keypoints to sample.
+        If the number of keypoints is lower than
+        the ones identified, we will return the
+        best keypoints based on the intensity
+        value.
+        Default: 100
 
     Returns
-    ------------------------
-    np.array:
-        Array with the points that fit the window
-        size inside image shape.
-
+    -----------
+    Tuple[np.array]
+        Tuple with the identified point locations
+        in cartesian space and the response image
+        after applying filtering
     """
-    n_dims = len(image_shape)
-    zero_coord = np.zeros((n_dims,), dtype=np.uint8)
+    inversed_fft_image = kd_pad_fft_buterworth(image, pad_width=pad_width)
+    maximum_filter_size = pad_width // 4
 
-    def check_window_size(nested_point: np.array) -> bool:
-        """
-        Map function applied over a numpy array
-        to check the window size to a point.
+    energy_points, response_img = kd_max_energy_points(
+        image=inversed_fft_image,
+        sigma=sigma,
+        maximum_filter_size=maximum_filter_size,
+        pad_width=pad_width,
+        max_relative_threshold=max_relative_threshold,
+        n_keypoints=n_keypoints,
+    )
 
-        Parameters
-        ------------------------
-        nested_point: np.array
-            Individual point from the points array.
+    print("Identified min max points: ", len(energy_points))
 
-        Returns
-        ------------------------
-        bool:
-            True if the (point (x, y) +- window size)
-            is inside intersection image shape,
-            False otherwise.
-        """
-        positive_modified_point = nested_point + window_size
-        negative_modified_point = nested_point - window_size
+    # Computing bboxs based on window size = pad_width
+    max_bboxs = kd_compute_bboxs_cubes(
+        energy_points, pad_width, response_img.shape
+    )
 
-        positive_point_window_inside = np.less_equal(
-            positive_modified_point, image_shape
+    # Non-max suppression with created bboxs
+    idxs_pruned_energy_bboxs = kd_non_max_suppression(
+        max_bboxs, overlap_threshold
+    )
+
+    print("Idxs pruned max min: ", idxs_pruned_energy_bboxs)
+    pruned_max_points = energy_points.copy()
+
+    # Getting non-max prunned points
+    if len(idxs_pruned_energy_bboxs):
+        pruned_max_points = energy_points[idxs_pruned_energy_bboxs]
+
+    print(
+        "Identified energy points after suppression: ", len(pruned_max_points)
+    )
+
+    return pruned_max_points, response_img
+
+
+def kd_compute_keypoints_hog(
+    image_gradient_magnitude: np.array,
+    image_gradient_orientation: List[np.array],
+    keypoint: np.array,
+    n_dims: int,
+    window_size: Optional[int] = 16,
+    bins: Optional[List] = [8, 4],
+) -> Tuple[np.array]:
+    """
+    Computes the k-dimensional histogram of
+    gradients for a set of keypoints located
+    in an image
+
+    Parameters
+    -----------
+    image_gradient_magnitude: np.array
+        Image gradient magnitude computed
+        from an image
+
+    image_gradient_orientation: List[np.array]
+        List containing the gradient orientation
+        of the image. This list will contain only
+        phi if it's a 2D image and phi and theta
+        if it's 3D. Theta for a 3D image refers to
+        the polar angle and phi as the
+        azimuthal angle (in 2D angle between
+        a point from the origin (0,0)
+        and point (x,y) ).
+
+    keypoint: np.array
+        Keypoint location in cartesian space
+
+    n_dims: int
+        Number of image dimensions
+
+    window_size: Optional[int]
+        Window size around the point. We follow
+        many papers in the selection of the
+        default value.
+        Default: 16
+
+    bins: Optional[List]
+        Number of bins applied over each image
+        dimension. If it's 2D, we will pick only
+        the first axis.
+        Default: [8, 4]
+
+    Raises
+    ----------
+    ValueError:
+        If the number of dimensions is 1 or lower
+        or greater than 3. This approach is only
+        for 2D and 3D images.
+
+    Returns
+    ----------
+    """
+
+    if n_dims <= 1 or n_dims > 3:
+        raise ValueError("Provide a correct number of dimensions")
+
+    # Converting keypoints to integers if necessary
+    if keypoint.dtype.kind != "i":
+        keypoint = keypoint.astype(np.uint32)
+
+    # Get window_size region around the keypoint
+    slices = []
+    for axis_val in keypoint:
+        slices.append(
+            slice(axis_val - window_size // 2, axis_val + window_size // 2)
         )
-        negative_point_window_inside = np.greater_equal(
-            negative_modified_point, zero_coord
-        )
+    slices = tuple(slices)
 
-        if np.all(positive_point_window_inside) and np.all(
-            negative_point_window_inside
-        ):
-            return True
+    # Getting smoothed magnitude and orientation for a keypoint region
+    region_magnitude = image_gradient_magnitude[slices]
 
-        return False
+    region_orientation_yx = image_gradient_orientation[0][slices]
+    region_orientation_z_yx = None
 
-    selected_indices = np.array(list(map(check_window_size, points)))
+    if n_dims == 3:
+        region_orientation_z_yx = image_gradient_orientation[0][slices]
+        region_orientation_yx = image_gradient_orientation[1][slices]
 
-    return points[selected_indices]
+    cell_size = int(region_magnitude.shape[0] // 4)
+    cell_size_per_dimension = [cell_size] * n_dims
+
+    if n_dims == 2:
+        # Order ZYX
+        cell_size_per_dimension = [1] + cell_size_per_dimension
+
+    # Iterating each quadrant and computing hogs
+    # TODO optimize
+    # Quadrants are organized as follow
+    # [0, 1]
+    # [2, 3]
+
+    # n_quadrants = (n_dims - 1) * 4
+    # hogs_per_quadrant = {i: {} for i in range(n_quadrants)}
+    weighted_gradient_hist = []
+
+    for z_idx in range(cell_size_per_dimension[0]):
+        for y_idx in range(cell_size_per_dimension[1]):
+            for x_idx in range(cell_size_per_dimension[2]):
+                if n_dims == 2:
+                    quadrant = (
+                        slice(
+                            cell_size * y_idx, cell_size * y_idx + cell_size
+                        ),
+                        slice(
+                            cell_size * x_idx, cell_size * x_idx + cell_size
+                        ),
+                    )
+                else:
+                    quadrant = (
+                        slice(
+                            cell_size * z_idx, cell_size * z_idx + cell_size
+                        ),
+                        slice(
+                            cell_size * y_idx, cell_size * y_idx + cell_size
+                        ),
+                        slice(
+                            cell_size * x_idx, cell_size * x_idx + cell_size
+                        ),
+                    )
+
+                cell_magnitude = region_magnitude[quadrant]
+                cell_orientation_yx = region_orientation_yx[quadrant]
+
+                if n_dims == 2:
+                    _range = (-180, 180)
+
+                    hist, hist_bins = np.histogram(
+                        cell_orientation_yx,
+                        bins=bins[0],
+                        range=_range,
+                        weights=cell_magnitude,
+                        density=False,
+                    )
+                    # Recomputing angles since histogram returns bins + 1
+                    # hist_bins = (hist_bins[:-1] + hist_bins[1:]) / 2.
+                    weighted_gradient_hist.append(hist)
+
+                else:
+                    cell_orientation_z_xy = region_orientation_z_yx[quadrant]
+                    _range = ((-180, 180), (-90, 90))
+
+                    hist, hist_bins = np.histogram2d(
+                        cell_orientation_z_xy.flatten(),
+                        cell_orientation_yx.flatten(),
+                        bins=bins,
+                        range=_range,
+                        weights=cell_magnitude.flatten(),
+                        density=False,
+                    )
+
+                    # Recomputing angles since histogram returns bins + 1
+                    hist_bins = (hist_bins[:-1] + hist_bins[1:]) / 2.0
+                    weighted_gradient_hist.append(hist)
+
+    feature_vector = np.array(weighted_gradient_hist)
+    feature_vector = np.expand_dims(feature_vector.flatten(), axis=1)
+    feature_vector = feature_vector / (
+        np.sqrt(np.sum(feature_vector**2)) + 1e-8
+    )
+
+    # Normalizing feat vect
+    # feature_vector = feature_vector / np.sqrt(np.sum(np.power(feature_vector, 2)))#/= np.linalg.norm(feature_vector)#
+    # feature_vector = np.sqrt(feature_vector)
+
+    return {"keypoint": keypoint, "feature_vector": feature_vector}

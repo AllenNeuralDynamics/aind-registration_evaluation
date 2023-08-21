@@ -4,7 +4,7 @@
 """
 
 import math
-from typing import Tuple, Type
+from typing import Optional, Tuple, Type
 
 import cv2
 import dask.array as da
@@ -745,3 +745,185 @@ class SmallImageMetrics(ImageMetrics):
         )
         fsim = numerator / denominator
         return fsim
+
+
+# TODO integrate feature space metric into metric's classes
+def compute_feature_space_distances(
+    features_1: Tuple[np.array],
+    features_2: Tuple[np.array],
+    feature_axis: Optional[int] = 0,
+    cartesian_axis: Optional[int] = 1,
+    feature_weight: Optional[float] = 0.2,
+) -> np.array:
+    """
+    Compute feature space distance metric
+    between two set of features extracted
+    from points in images.
+
+    Parameters
+    -----------
+    features_1: Tuple[np.array]
+        Tuple that contains two arrays,
+        one is the feature vector that
+        represents that point in space
+        while the second array represents
+        the location in cartesian space
+        of that point for the image 1
+
+    features_2: Tuple[np.array]
+        Tuple that contains two arrays,
+        one is the feature vector that
+        represents that point in space
+        while the second array represents
+        the location in cartesian space
+        of that point for the image 2
+
+    feature_axis: Optional[int]
+        Axis in the tuple where the
+        feature vectors are stored.
+        Default: 0
+
+    cartesian_axis: Optional[int]
+        Axis in the tuple where the
+        cartesian locations are stored.
+        Default: 1
+
+    feature_weight: Optional[float]
+        Weight used in the metric for
+        the feature vector. The cartesian
+        weight is calculated using
+        (1 - feature_weight)
+        Default: 0.2
+
+    Raises
+    -----------
+    ValueError:
+        - If feature_axis or cartesian_axis
+        parameters are not in axis 0 or 1.
+        - If feature_weight is not in the
+        range 0.0 - 1.0.
+
+
+    Returns
+    -----------
+    np.narray:
+        Keypoint distances of each point
+        from image 1 to image 2
+
+    """
+
+    if feature_weight < 0 or feature_weight > 1:
+        raise ValueError("Feature weight range is from 0.0 to 1.0")
+
+    if cartesian_axis not in [0, 1]:
+        raise ValueError("Provide a valid axis for cartesian_axis")
+
+    if feature_axis not in [0, 1]:
+        raise ValueError("Provide a valid axis for cartesian_axis")
+
+    # Features have the feature vector and cartesian location of the point
+    # in cartesian space.
+    cartesian_weight = 1 - feature_weight
+
+    # Feature distances -> save all differences left points -> right points
+    keypoint_distances_shape = (
+        features_1[feature_axis].shape[0],
+        features_2[feature_axis].shape[0],
+    )
+
+    feat_distances = np.array([], dtype=np.float32)
+    loc_distances = np.array([], dtype=np.float32)
+
+    for feat_idx in range(features_1[feature_axis].shape[0]):
+        feat_dif = (
+            features_2[feature_axis] - features_1[feature_axis][feat_idx]
+        )
+        feat_dif = np.power(feat_dif, 2).sum(axis=1).flatten()
+        loc_dif = np.sqrt(
+            np.sum(
+                np.power(
+                    features_2[cartesian_axis]
+                    - features_1[cartesian_axis][feat_idx],
+                    2,
+                ),
+                axis=-1,
+            )
+        )
+
+        feat_distances = np.append(feat_distances, feat_dif)
+        loc_distances = np.append(loc_distances, loc_dif)
+
+    # Normalization
+    feat_distances = feat_distances / feat_distances[feat_distances.argmax()]
+    loc_distances = loc_distances / loc_distances[loc_distances.argmax()]
+
+    feat_distances = feat_distances.reshape(keypoint_distances_shape)
+    loc_distances = loc_distances.reshape(keypoint_distances_shape)
+
+    keypoint_distances = (feature_weight * feat_distances) + (
+        cartesian_weight * loc_distances
+    )
+    return keypoint_distances
+
+
+def get_pairs_from_distances(
+    distances: np.array, delete_points: Optional[bool] = True
+) -> dict:
+    """
+    Get point pairs based on best distance
+
+    Parameters
+    -----------
+    distances: np.array
+        Array of NxM where N is the number
+        of keypoints identified for image 1
+        and M the keypoints for image 2
+
+    delete_points: Optional[bool]
+        Boolean that indicates if only
+        one match point is returned. In other
+        words, if it's true returns 1-1 match,
+        N-1 match otherwise.
+        Default: True
+
+    Returns
+    -----------
+    Dict
+        Dictionary with keys pointing to the
+        keypoint indice on the left image and
+        value pointing to the keypoint indice
+        of the right image
+    """
+
+    pairs = {}
+    right_assigned_points = {}
+
+    for left_key_idx in range(distances.shape[0]):
+        right_min_idx = distances[left_key_idx].argmin()
+        right_min_distance = distances[left_key_idx][right_min_idx]
+
+        old_assignment = (
+            right_assigned_points.get(right_min_idx) if delete_points else None
+        )
+
+        if (
+            old_assignment is not None
+            and old_assignment["distance"] > right_min_distance
+        ):
+            old_left_point = old_assignment["point_idx"]
+            del pairs[old_left_point]
+
+            pairs[left_key_idx] = right_min_idx
+            right_assigned_points[right_min_idx] = {
+                "point_idx": left_key_idx,
+                "distance": right_min_distance,
+            }
+
+        elif old_assignment is None:
+            pairs[left_key_idx] = right_min_idx
+            right_assigned_points[right_min_idx] = {
+                "point_idx": left_key_idx,
+                "distance": right_min_distance,
+            }
+
+    return pairs
