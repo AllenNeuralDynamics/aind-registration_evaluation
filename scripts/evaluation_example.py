@@ -2,7 +2,7 @@
 Evaluation example with 2D and 3D images
 """
 
-from eval_reg.eval_stitching import EvalStitching, get_default_config
+from aind_registration_evaluation.main import EvalStitching, get_default_config
 
 
 def main():

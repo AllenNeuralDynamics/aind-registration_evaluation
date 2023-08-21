@@ -9,9 +9,10 @@ import numpy as np
 import yaml
 from argschema import ArgSchemaParser
 
-from . import io_utils, utils
-from .metrics import ImageMetricsFactory
-from .params import EvalRegSchema
+from aind_registration_evaluation import sample, util
+from aind_registration_evaluation.io import extract_data, get_data
+from aind_registration_evaluation.metric import ImageMetricsFactory
+from aind_registration_evaluation.params import EvalRegSchema
 
 # IO types
 PathLike = Union[str, Path]
@@ -50,7 +51,7 @@ class EvalStitching(ArgSchemaParser):
         image_2_data = None
 
         # read data/pointers and linear transform
-        image_1, image_2, transform = io_utils.get_data(
+        image_1, image_2, transform = get_data(
             path_image_1=self.args["image_1"],
             path_image_2=self.args["image_2"],
             data_type=self.args["data_type"],
@@ -59,18 +60,18 @@ class EvalStitching(ArgSchemaParser):
 
         if self.args["data_type"] == "large":
             # Load dask array
-            image_1_data = utils.extract_data(image_1.as_dask_array())
-            image_2_data = utils.extract_data(image_2.as_dask_array())
+            image_1_data = extract_data(image_1.as_dask_array())
+            image_2_data = extract_data(image_2.as_dask_array())
 
         elif self.args["data_type"] == "small":
-            image_1_data = utils.extract_data(image_1.as_numpy_array())
-            image_2_data = utils.extract_data(image_2.as_numpy_array())
+            image_1_data = extract_data(image_1.as_numpy_array())
+            image_2_data = extract_data(image_2.as_numpy_array())
 
         elif "dummy" in self.args["data_type"]:
             image_1_data = image_1
             image_2_data = image_2
 
-        utils.validate_image_transform(
+        util.validate_image_transform(
             image_1=image_1_data,
             image_2=image_2_data,
             transform_matrix=transform,
@@ -81,19 +82,19 @@ class EvalStitching(ArgSchemaParser):
 
         # calculate extent of overlap using transforms
         # in common coordinate system (assume for image 1)
-        bounds_1, bounds_2 = utils.calculate_bounds(
+        bounds_1, bounds_2 = util.calculate_bounds(
             image_1_shape, image_2_shape, transform
         )
 
         # Sample points in overlapping bounds
-        points = utils.sample_points_in_overlap(
+        points = sample.sample_points_in_overlap(
             bounds_1=bounds_1,
             bounds_2=bounds_2,
             numpoints=self.args["sampling_info"]["numpoints"],
             sample_type=self.args["sampling_info"]["sampling_type"],
         )
 
-        pruned_points = utils.prune_points_to_fit_window(
+        pruned_points = sample.prune_points_to_fit_window(
             image_1_shape, points, self.args["window_size"]
         )
 
@@ -152,7 +153,7 @@ class EvalStitching(ArgSchemaParser):
             LOGGER.info(message)
 
             if self.args["visualize"]:
-                utils.visualize_images(
+                util.visualize_images(
                     image_1_data,
                     image_2_data,
                     [bounds_1, bounds_2],
