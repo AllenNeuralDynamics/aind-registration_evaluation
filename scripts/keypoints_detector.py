@@ -497,7 +497,10 @@ def kd_fft_keypoints(
         len(pruned_min_points),
     )
 
-    return pruned_max_points, pruned_min_points, response_img
+    return (
+        np.concatenate((pruned_max_points, pruned_min_points), axis=0),
+        response_img,
+    )
 
 
 def kd_fft_energy_keypoints(
@@ -1215,6 +1218,57 @@ def compute_feature_space_distances(
     features_2: Tuple[np.array],
     feature_axis: int = 0,
     cart_axis: int = 1,
+    feature_weight: float = 0.2,
+) -> np.array:
+    # Features have the feature vector and cartesian location of the point
+    # in cartesian space.
+
+    cartesian_weight = 1 - feature_weight
+
+    # Feature distances -> save all differences left points -> right points
+    keypoint_distances_shape = (
+        features_1[feature_axis].shape[0],
+        features_2[feature_axis].shape[0],
+    )
+
+    feat_distances = np.array([], dtype=np.float32)
+    loc_distances = np.array([], dtype=np.float32)
+
+    for feat_idx in range(features_1[feature_axis].shape[0]):
+        feat_dif = (
+            features_2[feature_axis] - features_1[feature_axis][feat_idx]
+        )
+        feat_dif = np.power(feat_dif, 2).sum(axis=1).flatten()
+        loc_dif = np.sqrt(
+            np.sum(
+                np.power(
+                    features_2[cart_axis] - features_1[cart_axis][feat_idx], 2
+                ),
+                axis=-1,
+            )
+        )
+
+        feat_distances = np.append(feat_distances, feat_dif)
+        loc_distances = np.append(loc_distances, loc_dif)
+
+    # Normalization
+    feat_distances = feat_distances / feat_distances[feat_distances.argmax()]
+    loc_distances = loc_distances / loc_distances[loc_distances.argmax()]
+
+    feat_distances = feat_distances.reshape(keypoint_distances_shape)
+    loc_distances = loc_distances.reshape(keypoint_distances_shape)
+
+    keypoint_distances = (feature_weight * feat_distances) + (
+        cartesian_weight * loc_distances
+    )
+    return keypoint_distances
+
+
+def compute_feature_space_distances_2(
+    features_1: Tuple[np.array],
+    features_2: Tuple[np.array],
+    feature_axis: int = 0,
+    cart_axis: int = 1,
 ) -> np.array:
     # Features have the feature vector and cartesian location of the point
     # in cartesian space.
@@ -1257,7 +1311,7 @@ def generate_key_features_per_img2d(img_2d, n_keypoints, mode="energy"):
         )
     else:
         # maximum
-        img_2d_keypoints_energy, img_response = kd_fft_energy_keypoints(
+        img_2d_keypoints_energy, img_response = kd_fft_keypoints(
             image=img_2d,
             pad_width=pad_width,
             n_keypoints=n_keypoints,
@@ -1505,7 +1559,7 @@ def test_fft_max_keypoints(img_1, img_2):
     feature_vector_img_2 = (img_2_dict["features"], img_2_dict["keypoints"])
 
     distances = compute_feature_space_distances(
-        feature_vector_img_1, feature_vector_img_2
+        feature_vector_img_1, feature_vector_img_2, feature_weight=0.3
     )
 
     point_matches_pruned = get_pairs_from_distances(
@@ -1726,7 +1780,7 @@ def test_fft_energy_keypoints(img_1, img_2):
     feature_vector_img_2 = (img_2_dict["features"], img_2_dict["keypoints"])
 
     distances = compute_feature_space_distances(
-        feature_vector_img_1, feature_vector_img_2
+        feature_vector_img_1, feature_vector_img_2, feature_weight=0.2
     )
 
     point_matches_pruned = get_pairs_from_distances(
@@ -2038,12 +2092,10 @@ def main():
     img_3d = tif.imread(img_3D_path)[120:184, 200:456, 200:456]
     print("3D image shape: ", img_3d.shape)
 
-    # test_fft_max_min_keypoints(img_1, img_2)
-    # test_fft_energy_keypoints(img_1, img_2)
     # test_img_2d_orientations(img_3d[10, :, :])# (img_1)#
     # test_img_3d_orientations(img_3d)
-    # test_fft_energy_keypoints(img_1, img_2)
-    test_fft_max_keypoints(img_1, img_2)
+    test_fft_energy_keypoints(img_1, img_2)
+    # test_fft_max_keypoints(img_1, img_2)
 
 
 if __name__ == "__main__":
