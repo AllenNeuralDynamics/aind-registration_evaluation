@@ -271,6 +271,7 @@ def kd_max_min_local_points(
     pad_width=0,
     max_relative_threshold=0.2,
     min_relative_threshold=0.2,
+    n_keypoints=100,
 ):
     image_max_filter = maximum_filter(image, size=maximum_filter_size)
 
@@ -290,6 +291,7 @@ def kd_max_min_local_points(
         image=image_max_filter,
         min_distance=maximum_filter_size * 2,
         threshold_rel=max_relative_threshold,
+        num_peaks=n_keypoints,
     )
 
     # Getting local minima points
@@ -297,6 +299,7 @@ def kd_max_min_local_points(
         image=-image_max_filter,
         min_distance=maximum_filter_size * 2,
         threshold_rel=min_relative_threshold,
+        num_peaks=n_keypoints,
     )
 
     return maxima_coordinates, minima_coordinates, image_max_filter
@@ -442,6 +445,7 @@ def kd_fft_keypoints(
     max_relative_threshold=0.2,
     min_relative_threshold=0.05,
     overlap_threshold=0.3,
+    n_keypoints=100,
 ):
     inversed_fft_image = kd_pad_fft_buterworth(image, pad_width=pad_width)
 
@@ -452,6 +456,7 @@ def kd_fft_keypoints(
         pad_width=pad_width,
         max_relative_threshold=max_relative_threshold,
         min_relative_threshold=min_relative_threshold,
+        n_keypoints=n_keypoints,
     )
 
     print("Identified min max points: ", len(max_points), len(min_points))
@@ -1241,13 +1246,22 @@ def compute_feature_space_distances(
     return feature_distances
 
 
-def generate_key_features_per_img2d(img_2d, n_keypoints):
+def generate_key_features_per_img2d(img_2d, n_keypoints, mode="energy"):
     pad_width = np.min(img_2d.shape) // 6
-    img_2d_keypoints_energy, img_response = kd_fft_energy_keypoints(
-        image=img_2d,
-        pad_width=pad_width,
-        n_keypoints=n_keypoints,
-    )
+
+    if mode == "energy":
+        img_2d_keypoints_energy, img_response = kd_fft_energy_keypoints(
+            image=img_2d,
+            pad_width=pad_width,
+            n_keypoints=n_keypoints,
+        )
+    else:
+        # maximum
+        img_2d_keypoints_energy, img_response = kd_fft_energy_keypoints(
+            image=img_2d,
+            pad_width=pad_width,
+            n_keypoints=n_keypoints,
+        )
 
     dy_val, dx_val = derivate_image_axis(
         gaussian_filter(img_2d, sigma=8), [0, 1]
@@ -1478,13 +1492,13 @@ def plot_matches(
         )
 
 
-def test_fft_energy_keypoints(img_1, img_2):
+def test_fft_max_keypoints(img_1, img_2):
     n_keypoints = 200
     img_1_dict = generate_key_features_per_img2d(
-        img_1, n_keypoints=n_keypoints
+        img_1, n_keypoints=n_keypoints, mode="max"
     )
     img_2_dict = generate_key_features_per_img2d(
-        img_2, n_keypoints=n_keypoints
+        img_2, n_keypoints=n_keypoints, mode="max"
     )
 
     feature_vector_img_1 = (img_1_dict["features"], img_1_dict["keypoints"])
@@ -1494,8 +1508,12 @@ def test_fft_energy_keypoints(img_1, img_2):
         feature_vector_img_1, feature_vector_img_2
     )
 
-    point_matches = get_pairs_from_distances(
+    point_matches_pruned = get_pairs_from_distances(
         distances=distances, delete_points=True
+    )
+
+    point_matches_not_pruned = get_pairs_from_distances(
+        distances=distances, delete_points=False
     )
 
     print(
@@ -1532,7 +1550,7 @@ def test_fft_energy_keypoints(img_1, img_2):
         img_1_dict["keypoints"][:, 1], img_1_dict["keypoints"][:, 0], "r."
     )  # max points
 
-    axarr[1].set_title("FFT Gauss Laplaced Filtered")
+    axarr[1].set_title("FFT-Butterworth Max Filtered")
     axarr[1].imshow(img_1_dict["response_img"])
     axarr[1].plot(
         img_1_dict["keypoints"][:, 1], img_1_dict["keypoints"][:, 0], "r."
@@ -1551,7 +1569,228 @@ def test_fft_energy_keypoints(img_1, img_2):
         img_2_dict["keypoints"][:, 1], img_2_dict["keypoints"][:, 0], "r."
     )  # max points
 
-    axarr[1].set_title("FFT Gauss Laplaced Filtered")
+    axarr[1].set_title("FFT-Butterworth Max Filtered")
+    axarr[1].imshow(img_2_dict["response_img"])
+    axarr[1].plot(
+        img_2_dict["keypoints"][:, 1], img_2_dict["keypoints"][:, 0], "r."
+    )  # max points
+    plt.tight_layout()
+    plt.show()
+
+    # comparison img1 - img2
+    f, axarr = plt.subplots(1, 2)
+
+    f.suptitle("FFT-Butterworth Max Filtered", fontsize=20)
+    axarr[0].set_title("Image 1")
+    axarr[0].imshow(img_1_dict["response_img"])
+    axarr[0].plot(
+        img_1_dict["keypoints"][:, 1], img_1_dict["keypoints"][:, 0], "r."
+    )  # max points
+
+    axarr[1].set_title("Image 2")
+    axarr[1].imshow(img_2_dict["response_img"])
+    axarr[1].plot(
+        img_2_dict["keypoints"][:, 1], img_2_dict["keypoints"][:, 0], "r."
+    )  # max points
+    plt.tight_layout()
+    plt.show()
+
+    f, axarr = plt.subplots(1, 2)
+
+    f.suptitle("Points in images", fontsize=20)
+    axarr[0].set_title("Img 1")
+    axarr[0].imshow(img_1)
+    axarr[0].plot(
+        img_1_dict["keypoints"][:, 1], img_1_dict["keypoints"][:, 0], "r."
+    )  # max points
+
+    axarr[1].set_title("Img 2")
+    axarr[1].imshow(img_2)
+    axarr[1].plot(
+        img_2_dict["keypoints"][:, 1], img_2_dict["keypoints"][:, 0], "r."
+    )  # max points
+    plt.tight_layout()
+    plt.show()
+
+    f, axarr = plt.subplots(1, 2, figsize=(10, 5))
+    f.suptitle("Matched points", fontsize=20)
+    # Set titles and labels
+    axarr[0].set_xlabel("X")
+    axarr[0].set_ylabel("Y")
+    axarr[0].set_title("1-N Match")
+
+    axarr[1].set_title("1-1 Match")
+    axarr[1].set_xlabel("X")
+    axarr[1].set_ylabel("Y")
+
+    idxs1, idxs2 = list(point_matches_not_pruned.keys()), list(
+        point_matches_not_pruned.values()
+    )
+    matches_not_pruned = np.column_stack((idxs1, idxs2))
+
+    idxs1, idxs2 = list(point_matches_pruned.keys()), list(
+        point_matches_pruned.values()
+    )
+    matches_pruned = np.column_stack((idxs1, idxs2))
+
+    plot_matches(
+        ax=axarr[0],
+        image1=img_1,
+        image2=img_2,
+        keypoints1=img_1_dict["keypoints"],
+        keypoints2=img_2_dict["keypoints"],
+        keypoints_color="red",
+        matches=matches_not_pruned,
+        matches_color="red",
+        only_matches=False,
+    )
+
+    plot_matches(
+        ax=axarr[1],
+        image1=img_1,
+        image2=img_2,
+        keypoints1=img_1_dict["keypoints"],
+        keypoints2=img_2_dict["keypoints"],
+        keypoints_color="red",
+        matches=matches_pruned,
+        matches_color="red",
+        only_matches=True,
+    )
+
+    plt.tight_layout()
+
+    # Show the plot
+    plt.show()
+
+    f, axarr = plt.subplots(1, 2, figsize=(10, 5))
+    f.suptitle("Matched points", fontsize=20)
+    # Set titles and labels
+    axarr[0].set_xlabel("X")
+    axarr[0].set_ylabel("Y")
+    axarr[0].set_title("1-N Match")
+
+    axarr[1].set_title("1-1 Match")
+    axarr[1].set_xlabel("X")
+    axarr[1].set_ylabel("Y")
+
+    idxs1, idxs2 = list(point_matches_not_pruned.keys()), list(
+        point_matches_not_pruned.values()
+    )
+    matches_not_pruned = np.column_stack((idxs1, idxs2))
+
+    idxs1, idxs2 = list(point_matches_pruned.keys()), list(
+        point_matches_pruned.values()
+    )
+    matches_pruned = np.column_stack((idxs1, idxs2))
+
+    plot_matches(
+        ax=axarr[0],
+        image1=img_1_dict["response_img"],
+        image2=img_2_dict["response_img"],
+        keypoints1=img_1_dict["keypoints"],
+        keypoints2=img_2_dict["keypoints"],
+        keypoints_color="red",
+        matches=matches_not_pruned,
+        matches_color="red",
+        only_matches=False,
+    )
+
+    plot_matches(
+        ax=axarr[1],
+        image1=img_1_dict["response_img"],
+        image2=img_2_dict["response_img"],
+        keypoints1=img_1_dict["keypoints"],
+        keypoints2=img_2_dict["keypoints"],
+        keypoints_color="red",
+        matches=matches_pruned,
+        matches_color="red",
+        only_matches=True,
+    )
+
+    plt.tight_layout()
+
+    # Show the plot
+    plt.show()
+
+
+def test_fft_energy_keypoints(img_1, img_2):
+    n_keypoints = 200
+    img_1_dict = generate_key_features_per_img2d(
+        img_1, n_keypoints=n_keypoints
+    )
+    img_2_dict = generate_key_features_per_img2d(
+        img_2, n_keypoints=n_keypoints
+    )
+
+    feature_vector_img_1 = (img_1_dict["features"], img_1_dict["keypoints"])
+    feature_vector_img_2 = (img_2_dict["features"], img_2_dict["keypoints"])
+
+    distances = compute_feature_space_distances(
+        feature_vector_img_1, feature_vector_img_2
+    )
+
+    point_matches_pruned = get_pairs_from_distances(
+        distances=distances, delete_points=True
+    )
+
+    point_matches_not_pruned = get_pairs_from_distances(
+        distances=distances, delete_points=False
+    )
+
+    print(
+        f"N keypoints img_1: {img_1_dict['keypoints'].shape} img_2: {img_2_dict['keypoints'].shape}"
+    )
+
+    # Showing only points
+    # comparison img1 filters
+    print("\n Keypoint confidence img 1")
+    for key_idx in range(len(img_1_dict["keypoints"])):
+        print(
+            f"Confidence for point {key_idx} is: ",
+            img_1_dict["response_img"][
+                img_1_dict["keypoints"][key_idx][0],
+                img_1_dict["keypoints"][key_idx][1],
+            ],
+        )
+
+    print("\n Keypoint confidence img 2")
+    for key_idx in range(len(img_2_dict["keypoints"])):
+        print(
+            f"Confidence for point {key_idx} is: ",
+            img_2_dict["response_img"][
+                img_2_dict["keypoints"][key_idx][0],
+                img_2_dict["keypoints"][key_idx][1],
+            ],
+        )
+
+    f, axarr = plt.subplots(1, 2)
+    f.suptitle("Image 1", fontsize=20)
+    axarr[0].set_title("Original")
+    axarr[0].imshow(img_1)
+    axarr[0].plot(
+        img_1_dict["keypoints"][:, 1], img_1_dict["keypoints"][:, 0], "r."
+    )  # max points
+
+    axarr[1].set_title("FFT-Butterworth Gauss Laplaced Filtered")
+    axarr[1].imshow(img_1_dict["response_img"])
+    axarr[1].plot(
+        img_1_dict["keypoints"][:, 1], img_1_dict["keypoints"][:, 0], "r."
+    )  # max points
+
+    plt.tight_layout()
+    plt.show()
+    # comparison img2 filters
+
+    f, axarr = plt.subplots(1, 2)
+
+    f.suptitle("Image 2", fontsize=20)
+    axarr[0].set_title("Original")
+    axarr[0].imshow(img_2)
+    axarr[0].plot(
+        img_2_dict["keypoints"][:, 1], img_2_dict["keypoints"][:, 0], "r."
+    )  # max points
+
+    axarr[1].set_title("FFT-Butterworth Gauss Laplaced Filtered")
     axarr[1].imshow(img_2_dict["response_img"])
     axarr[1].plot(
         img_2_dict["keypoints"][:, 1], img_2_dict["keypoints"][:, 0], "r."
@@ -1594,25 +1833,49 @@ def test_fft_energy_keypoints(img_1, img_2):
     plt.tight_layout()
     plt.show()
 
-    f, axarr = plt.subplots(1, 1, figsize=(10, 5))
+    f, axarr = plt.subplots(1, 2, figsize=(10, 5))
     f.suptitle("Matched points", fontsize=20)
     # Set titles and labels
-    axarr.set_xlabel("X")
-    axarr.set_ylabel("Y")
+    axarr[0].set_xlabel("X")
+    axarr[0].set_ylabel("Y")
+    axarr[0].set_title("1-N Match")
 
-    idxs1, idxs2 = list(point_matches.keys()), list(point_matches.values())
-    matches = np.column_stack((idxs1, idxs2))
+    axarr[1].set_title("1-1 Match")
+    axarr[1].set_xlabel("X")
+    axarr[1].set_ylabel("Y")
+
+    idxs1, idxs2 = list(point_matches_not_pruned.keys()), list(
+        point_matches_not_pruned.values()
+    )
+    matches_not_pruned = np.column_stack((idxs1, idxs2))
+
+    idxs1, idxs2 = list(point_matches_pruned.keys()), list(
+        point_matches_pruned.values()
+    )
+    matches_pruned = np.column_stack((idxs1, idxs2))
 
     plot_matches(
-        ax=axarr,
+        ax=axarr[0],
         image1=img_1,
         image2=img_2,
         keypoints1=img_1_dict["keypoints"],
         keypoints2=img_2_dict["keypoints"],
         keypoints_color="red",
-        matches=matches,
+        matches=matches_not_pruned,
         matches_color="red",
         only_matches=False,
+    )
+
+    plot_matches(
+        ax=axarr[1],
+        image1=img_1,
+        image2=img_2,
+        keypoints1=img_1_dict["keypoints"],
+        keypoints2=img_2_dict["keypoints"],
+        keypoints_color="red",
+        matches=matches_pruned,
+        matches_color="red",
+        only_matches=True,
     )
 
     plt.tight_layout()
@@ -1620,25 +1883,49 @@ def test_fft_energy_keypoints(img_1, img_2):
     # Show the plot
     plt.show()
 
-    f, axarr = plt.subplots(1, 1, figsize=(10, 5))
+    f, axarr = plt.subplots(1, 2, figsize=(10, 5))
     f.suptitle("Matched points", fontsize=20)
     # Set titles and labels
-    axarr.set_xlabel("X")
-    axarr.set_ylabel("Y")
+    axarr[0].set_xlabel("X")
+    axarr[0].set_ylabel("Y")
+    axarr[0].set_title("1-N Match")
 
-    idxs1, idxs2 = list(point_matches.keys()), list(point_matches.values())
-    matches = np.column_stack((idxs1, idxs2))
+    axarr[1].set_title("1-1 Match")
+    axarr[1].set_xlabel("X")
+    axarr[1].set_ylabel("Y")
+
+    idxs1, idxs2 = list(point_matches_not_pruned.keys()), list(
+        point_matches_not_pruned.values()
+    )
+    matches_not_pruned = np.column_stack((idxs1, idxs2))
+
+    idxs1, idxs2 = list(point_matches_pruned.keys()), list(
+        point_matches_pruned.values()
+    )
+    matches_pruned = np.column_stack((idxs1, idxs2))
 
     plot_matches(
-        ax=axarr,
+        ax=axarr[0],
         image1=img_1_dict["response_img"],
         image2=img_2_dict["response_img"],
         keypoints1=img_1_dict["keypoints"],
         keypoints2=img_2_dict["keypoints"],
-        # keypoints_color='red',
-        matches=matches,
+        keypoints_color="red",
+        matches=matches_not_pruned,
         matches_color="red",
         only_matches=False,
+    )
+
+    plot_matches(
+        ax=axarr[1],
+        image1=img_1_dict["response_img"],
+        image2=img_2_dict["response_img"],
+        keypoints1=img_1_dict["keypoints"],
+        keypoints2=img_2_dict["keypoints"],
+        keypoints_color="red",
+        matches=matches_pruned,
+        matches_color="red",
+        only_matches=True,
     )
 
     plt.tight_layout()
@@ -1755,7 +2042,8 @@ def main():
     # test_fft_energy_keypoints(img_1, img_2)
     # test_img_2d_orientations(img_3d[10, :, :])# (img_1)#
     # test_img_3d_orientations(img_3d)
-    test_fft_energy_keypoints(img_1, img_2)
+    # test_fft_energy_keypoints(img_1, img_2)
+    test_fft_max_keypoints(img_1, img_2)
 
 
 if __name__ == "__main__":
