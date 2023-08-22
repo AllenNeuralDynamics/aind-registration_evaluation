@@ -654,7 +654,7 @@ def visualize_misalignment_images(
 
         fig, ax = plt.subplots()
 
-        fig.suptitle(f"Metric: {metric_name}", fontsize=16)
+        fig.suptitle(f"Metric: {metric_name}", fontsize=12)
 
         # Setting X,Y positions of points within the grid
 

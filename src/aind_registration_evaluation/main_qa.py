@@ -349,11 +349,13 @@ class EvalStitching(ArgSchemaParser):
         picked_left_points = np.array(picked_left_points)
         picked_right_points = np.array(picked_right_points)
 
+        median = np.median(point_distances)
+        mean = np.mean(point_distances)
         print(
-            f"\n[!] Median euclidean distance in pixels/voxels: {np.median(point_distances)}"
+            f"\n[!] Median euclidean distance in pixels/voxels: {median}"
         )
         print(
-            f"[!] Mean euclidean distance in pixels/voxels: {np.mean(point_distances)}"
+            f"[!] Mean euclidean distance in pixels/voxels: {mean}"
         )
 
         if self.args["visualize"]:
@@ -364,7 +366,7 @@ class EvalStitching(ArgSchemaParser):
                 picked_left_points,
                 picked_right_points,
                 transform,
-                "Misalignment metric ch 445 - ch 561",
+                f"Misalignment metric ch 445 - ch 561 - Error {median}",
             )
 
 
