@@ -10,6 +10,7 @@ from typing import Union
 import numpy as np
 import yaml
 from argschema import ArgSchemaParser
+from scipy.ndimage import gaussian_filter
 
 from aind_registration_evaluation import sample, util
 from aind_registration_evaluation.io import extract_data, get_data
