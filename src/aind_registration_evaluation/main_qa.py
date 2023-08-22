@@ -314,20 +314,56 @@ class EvalStitching(ArgSchemaParser):
 
         # Tomorrow map points to the same
         # coordinate system
+        # Working only with translation at the moment
+        offset_ty = transform[0, -1]
+        offset_tx = transform[1, -1]
 
-        # calculate metrics per images
-        metrics_results = {}
-        metrics = []
+        left_image_keypoints = img_1_dict["keypoints"]
+        right_image_keypoints = img_2_dict["keypoints"]
+
+        right_image_keypoints[:, 0] += offset_ty
+        right_image_keypoints[:, 1] += offset_tx
+
+        # distance between points
+        point_distances = np.array([])
+        picked_left_points = []
+        picked_right_points = []
+
+        for left_idx, right_idx in point_matches_pruned.items():
+            picked_left_points.append(left_image_keypoints[left_idx])
+            picked_right_points.append(right_image_keypoints[right_idx])
+
+            loc_dif = np.sqrt(
+                np.sum(
+                    np.power(
+                        left_image_keypoints[left_idx]
+                        - right_image_keypoints[right_idx],
+                        2,
+                    ),
+                    axis=-1,
+                )
+            )
+            point_distances = np.append(point_distances, loc_dif)
+
+        picked_left_points = np.array(picked_left_points)
+        picked_right_points = np.array(picked_right_points)
+
+        print(
+            f"\n[!] Median euclidean distance in pixels/voxels: {np.median(point_distances)}"
+        )
+        print(
+            f"[!] Mean euclidean distance in pixels/voxels: {np.mean(point_distances)}"
+        )
 
         if self.args["visualize"]:
-            util.visualize_images(
+            util.visualize_misalignment_images(
                 image_1_data,
                 image_2_data,
                 [bounds_1, bounds_2],
-                [],
-                [],
+                picked_left_points,
+                picked_right_points,
                 transform,
-                "misalign",
+                "Misalignment metric ch 445 - ch 561",
             )
 
 

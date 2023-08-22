@@ -6,7 +6,7 @@ intersection areas
 from typing import List, Optional, Tuple
 
 import numpy as np
-from scipy.ndimage import gaussian_filter, gaussian_laplace, maximum_filter
+from scipy.ndimage import gaussian_laplace, maximum_filter
 from skimage.feature import peak_local_max
 
 from aind_registration_evaluation._shared.types import ArrayLike

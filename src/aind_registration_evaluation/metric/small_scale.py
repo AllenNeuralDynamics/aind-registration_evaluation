@@ -931,5 +931,4 @@ def get_pairs_from_distances(
                     "distance": right_min_distance,
                 }
 
-    print(right_assigned_points)
     return pairs
