@@ -2,7 +2,8 @@
 Evaluation example with 2D and 3D images
 """
 
-from aind_registration_evaluation.main import EvalStitching, get_default_config
+from aind_registration_evaluation.main_qa import (EvalStitching,
+                                                  get_default_config)
 
 
 def main():
@@ -17,16 +18,12 @@ def main():
 
     BASE_PATH = "/Users/camilo.laiton/Documents/images/"
 
-    default_config["image_1"] = (
-        BASE_PATH + "Ex_488_Em_525_468770_468770_830620_012820.zarr"
-    )
-    default_config["image_2"] = (
-        BASE_PATH + "Ex_488_Em_525_501170_501170_830620_012820.zarr"
-    )
+    default_config["image_1"] = BASE_PATH + "Ex_445_Em_469_sample.tif"
+    default_config["image_2"] = BASE_PATH + "Ex_561_Em_593_sample.tif"
 
     default_config["transform_matrix"] = [
         [1, 0, 0],  # Y -17
-        [0, 1, 1800],  # X 1800
+        [0, 1, 0],  # X 1800
         [0, 0, 1],
     ]
 
@@ -58,7 +55,7 @@ def main():
     mod = EvalStitching(default_config)
 
     time_start = time.time()
-    mod.run()
+    mod.run_misalignment()
     time_end = time.time()
     print(f"Time: {time_end-time_start}")
 

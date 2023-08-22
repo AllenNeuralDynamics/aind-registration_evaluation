@@ -372,9 +372,19 @@ def visualize_images(
         )
 
         # Alpha for overlaying
-        alpha = 0.7
-        ax.imshow(adjusted_img_1, alpha=alpha)  # , cmap='bone')
-        ax.imshow(adjusted_img_2, alpha=alpha)  # , cmap='bone')
+        alpha = 0.5
+        vmin_1, vmax_1 = np.percentile(image_1_data, (0.2, 99))
+        vmin_2, vmax_2 = np.percentile(image_2_data, (0.2, 99))
+        ax.imshow(
+            adjusted_img_1, alpha=alpha, vmin=vmin_1, vmax=vmax_1, cmap="Blues"
+        )
+        ax.imshow(
+            adjusted_img_2,
+            alpha=alpha,
+            vmin=vmin_2,
+            vmax=vmax_2,
+            cmap="Oranges",
+        )
 
         ax.add_patch(rectangle_image_1)
         ax.add_patch(rectangle_image_2)

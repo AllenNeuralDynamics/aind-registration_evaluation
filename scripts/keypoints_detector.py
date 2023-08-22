@@ -3,6 +3,7 @@ Script to test the keypoint
 detector and matching
 """
 
+import imageio as iio
 import numpy as np
 import tifffile as tif
 import zarr
@@ -170,9 +171,9 @@ def test_fft_max_min_keypoints(img_1, img_2):
     plt.show()
 
 
-def generate_key_features_per_img2d(img_2d, n_keypoints, mode="energy"):
-    pad_width = np.min(img_2d.shape) // 6
-
+def generate_key_features_per_img2d(
+    img_2d, n_keypoints, pad_width, mode="energy"
+):
     if mode == "energy":
         img_2d_keypoints_energy, img_response = kd_fft_energy_keypoints(
             image=img_2d,
@@ -257,11 +258,11 @@ def test_fft_max_keypoints(img_1, img_2):
     )
 
     point_matches_pruned = get_pairs_from_distances(
-        distances=distances, delete_points=True
+        distances=distances, delete_points=True  # , metric_threshold=0.1
     )
 
     point_matches_not_pruned = get_pairs_from_distances(
-        distances=distances, delete_points=False
+        distances=distances, delete_points=False  # , metric_threshold=0.1
     )
 
     print(
@@ -461,13 +462,13 @@ def test_fft_max_keypoints(img_1, img_2):
     plt.show()
 
 
-def test_fft_energy_keypoints(img_1, img_2):
+def test_fft_energy_keypoints(img_1, img_2, pad_width):
     n_keypoints = 200
     img_1_dict = generate_key_features_per_img2d(
-        img_1, n_keypoints=n_keypoints
+        img_1, n_keypoints=n_keypoints, pad_width=pad_width
     )
     img_2_dict = generate_key_features_per_img2d(
-        img_2, n_keypoints=n_keypoints
+        img_2, n_keypoints=n_keypoints, pad_width=pad_width
     )
 
     feature_vector_img_1 = (img_1_dict["features"], img_1_dict["keypoints"])
@@ -478,11 +479,11 @@ def test_fft_energy_keypoints(img_1, img_2):
     )
 
     point_matches_pruned = get_pairs_from_distances(
-        distances=distances, delete_points=True
+        distances=distances, delete_points=True, metric_threshold=0.1
     )
 
     point_matches_not_pruned = get_pairs_from_distances(
-        distances=distances, delete_points=False
+        distances=distances, delete_points=False, metric_threshold=0.1
     )
 
     print(
@@ -776,19 +777,37 @@ def test_img_3d_orientations(img_3d):
 def main():
     BASE_PATH = "/Users/camilo.laiton/Documents/images/"
 
-    img_1_path = BASE_PATH + "Ex_488_Em_525_468770_468770_830620_012820.zarr/0"
-    img_2_path = BASE_PATH + "Ex_488_Em_525_501170_501170_830620_012820.zarr/0"
+    # img_1_path = BASE_PATH + "Ex_488_Em_525_468770_468770_830620_012820.zarr/0"
+    # img_2_path = BASE_PATH + "Ex_488_Em_525_501170_501170_830620_012820.zarr/0"
 
-    img_3D_path = BASE_PATH + "block_10.tif"
+    # img_3D_path = BASE_PATH + "block_10.tif"
 
-    img_1 = zarr.open(img_1_path, "r")[0, 0, 0, :, 1800:]
-    img_2 = zarr.open(img_2_path, "r")[0, 0, 0, :, :200]
-    img_3d = tif.imread(img_3D_path)[120:184, 200:456, 200:456]
-    print("3D image shape: ", img_3d.shape)
+    # img_1 = zarr.open(img_1_path, "r")[0, 0, 0, :, 1800:]
+    # img_2 = zarr.open(img_2_path, "r")[0, 0, 0, :, :200]
+    # img_3d = tif.imread(img_3D_path)[120:184, 200:456, 200:456]
+
+    # New SmartSPIM test, interchannel
+    ch_445_sample_path = (
+        BASE_PATH + "Ex_445_Em_469_440050_440050_479500_012120.png"
+    )
+    ch_561_sample_path = (
+        BASE_PATH + "Ex_561_Em_593_440050_440050_479500_012120.png"
+    )
+
+    full_ch_445_sample_path = BASE_PATH + "Ex_445_Em_469_sample.tif"
+    full_ch_561_sample_path = BASE_PATH + "Ex_561_Em_593_sample.tif"
+
+    # ch_445_data = iio.imread(ch_445_sample_path)
+    # ch_561_data = iio.imread(ch_561_sample_path)
+
+    ch_445_data = tif.imread(full_ch_445_sample_path)
+    ch_561_data = tif.imread(full_ch_561_sample_path)
+
+    # print("3D image shape: ", img_3d.shape)
 
     # test_img_2d_orientations(img_3d[10, :, :])# (img_1)#
     # test_img_3d_orientations(img_3d)
-    test_fft_energy_keypoints(img_1, img_2)
+    test_fft_energy_keypoints(ch_445_data, ch_561_data, pad_width=40)
     # test_fft_max_keypoints(img_1, img_2)
 
 

@@ -867,7 +867,9 @@ def compute_feature_space_distances(
 
 
 def get_pairs_from_distances(
-    distances: np.array, delete_points: Optional[bool] = True
+    distances: np.array,
+    delete_points: Optional[bool] = True,
+    metric_threshold: Optional[float] = 0.2,
 ) -> dict:
     """
     Get point pairs based on best distance
@@ -902,28 +904,32 @@ def get_pairs_from_distances(
         right_min_idx = distances[left_key_idx].argmin()
         right_min_distance = distances[left_key_idx][right_min_idx]
 
-        old_assignment = (
-            right_assigned_points.get(right_min_idx) if delete_points else None
-        )
+        if right_min_distance < metric_threshold:
+            old_assignment = (
+                right_assigned_points.get(right_min_idx)
+                if delete_points
+                else None
+            )
 
-        if (
-            old_assignment is not None
-            and old_assignment["distance"] > right_min_distance
-        ):
-            old_left_point = old_assignment["point_idx"]
-            del pairs[old_left_point]
+            if (
+                old_assignment is not None
+                and old_assignment["distance"] > right_min_distance
+            ):
+                old_left_point = old_assignment["point_idx"]
+                del pairs[old_left_point]
 
-            pairs[left_key_idx] = right_min_idx
-            right_assigned_points[right_min_idx] = {
-                "point_idx": left_key_idx,
-                "distance": right_min_distance,
-            }
+                pairs[left_key_idx] = right_min_idx
+                right_assigned_points[right_min_idx] = {
+                    "point_idx": left_key_idx,
+                    "distance": right_min_distance,
+                }
 
-        elif old_assignment is None:
-            pairs[left_key_idx] = right_min_idx
-            right_assigned_points[right_min_idx] = {
-                "point_idx": left_key_idx,
-                "distance": right_min_distance,
-            }
+            elif old_assignment is None:
+                pairs[left_key_idx] = right_min_idx
+                right_assigned_points[right_min_idx] = {
+                    "point_idx": left_key_idx,
+                    "distance": right_min_distance,
+                }
 
+    print(right_assigned_points)
     return pairs

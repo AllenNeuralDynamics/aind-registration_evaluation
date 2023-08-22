@@ -1,4 +1,6 @@
-""" Evaluate stitching of large scale data.
+"""
+Evaluate stitching misalignment
+of large scale data.
 """
 import logging
 import os
@@ -11,8 +13,11 @@ from argschema import ArgSchemaParser
 
 from aind_registration_evaluation import sample, util
 from aind_registration_evaluation.io import extract_data, get_data
-from aind_registration_evaluation.metric import ImageMetricsFactory
+from aind_registration_evaluation.metric import (
+    ImageMetricsFactory, compute_feature_space_distances,
+    get_pairs_from_distances)
 from aind_registration_evaluation.params import EvalRegSchema
+from aind_registration_evaluation.sample import *
 
 # IO types
 PathLike = Union[str, Path]
@@ -30,6 +35,76 @@ logging.disable("DEBUG")
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
+
+
+def generate_key_features_per_img2d(
+    img_2d, n_keypoints, pad_width, mode="energy"
+):
+    if mode == "energy":
+        img_2d_keypoints_energy, img_response = kd_fft_energy_keypoints(
+            image=img_2d,
+            pad_width=pad_width,
+            n_keypoints=n_keypoints,
+        )
+    else:
+        # maximum
+        img_2d_keypoints_energy, img_response = kd_fft_keypoints(
+            image=img_2d,
+            pad_width=pad_width,
+            n_keypoints=n_keypoints,
+        )
+
+    dy_val, dx_val = derivate_image_axis(
+        gaussian_filter(img_2d, sigma=8), [0, 1]
+    )
+
+    # img_2d_dy = np.zeros(img_2d.shape, dtype=img_2d.dtype)
+    # img_2d_dx = np.zeros(img_2d.shape, dtype=img_2d.dtype)
+
+    # dy_val = np.sqrt(dy_val)
+    # dx_val = np.sqrt(dx_val)
+
+    # f, ax = plt.subplots(1,2)
+
+    # ax[0].imshow(dy_val, cmap="gray")#vmin=0, vmax=0.2)
+    # ax[1].imshow(dx_val, cmap="gray") #vmin=0, vmax=0.2)
+    # plt.show()
+
+    # img_2d_dy[:-1, :] = np.float32(dy_val)
+    # img_2d_dx[:, :-1] = np.float32(dx_val)
+
+    (
+        gradient_magnitude,
+        gradient_orientation,
+        gradient_orientation_polar,
+    ) = kd_gradient_magnitudes_and_orientations(
+        derivated_images=[dy_val, dx_val]  # [img_2d_dy, img_2d_dx]
+    )
+
+    img_keypoints_features = [
+        kd_compute_keypoints_hog(
+            image_gradient_magnitude=gradient_magnitude,
+            image_gradient_orientation=[gradient_orientation],
+            keypoint=keypoint,
+            n_dims=2,
+            window_size=16,
+            bins=[8],
+        )
+        for keypoint in img_2d_keypoints_energy
+    ]
+
+    keypoints = []
+    features = []
+    for key_feat in img_keypoints_features:
+        # print(f"Keypoint {key_feat['keypoint']} feat shape: {key_feat['feature_vector'].shape}")
+        keypoints.append(key_feat["keypoint"])
+        features.append(key_feat["feature_vector"])
+
+    return {
+        "keypoints": np.array(keypoints),
+        "features": np.array(features),
+        "response_img": img_response,
+    }
 
 
 class EvalStitching(ArgSchemaParser):
@@ -162,6 +237,98 @@ class EvalStitching(ArgSchemaParser):
                     transform,
                     metric_name,
                 )
+
+    def run_misalignment(self):
+        """
+        Args:
+            Evaluate block
+        """
+
+        print(self.args)
+
+        image_1_data = None
+        image_2_data = None
+
+        # read data/pointers and linear transform
+        image_1, image_2, transform = get_data(
+            path_image_1=self.args["image_1"],
+            path_image_2=self.args["image_2"],
+            data_type=self.args["data_type"],
+            transform_matrix=self.args["transform_matrix"],
+        )
+
+        if self.args["data_type"] == "large":
+            # Load dask array
+            image_1_data = extract_data(image_1.as_dask_array())
+            image_2_data = extract_data(image_2.as_dask_array())
+
+        elif self.args["data_type"] == "small":
+            image_1_data = extract_data(image_1.as_numpy_array())
+            image_2_data = extract_data(image_2.as_numpy_array())
+
+        elif "dummy" in self.args["data_type"]:
+            image_1_data = image_1
+            image_2_data = image_2
+
+        util.validate_image_transform(
+            image_1=image_1_data,
+            image_2=image_2_data,
+            transform_matrix=transform,
+        )
+
+        image_1_shape = image_1_data.shape
+        image_2_shape = image_2_data.shape
+
+        # calculate extent of overlap using transforms
+        # in common coordinate system (assume for image 1)
+        bounds_1, bounds_2 = util.calculate_bounds(
+            image_1_shape, image_2_shape, transform
+        )
+
+        # Compute keypoints between images
+        n_keypoints = 200
+        pad_width = 40
+        img_1_dict = generate_key_features_per_img2d(
+            image_1_data, n_keypoints=n_keypoints, pad_width=pad_width
+        )
+        img_2_dict = generate_key_features_per_img2d(
+            image_2_data, n_keypoints=n_keypoints, pad_width=pad_width
+        )
+
+        feature_vector_img_1 = (
+            img_1_dict["features"],
+            img_1_dict["keypoints"],
+        )
+        feature_vector_img_2 = (
+            img_2_dict["features"],
+            img_2_dict["keypoints"],
+        )
+
+        distances = compute_feature_space_distances(
+            feature_vector_img_1, feature_vector_img_2, feature_weight=0.2
+        )
+
+        point_matches_pruned = get_pairs_from_distances(
+            distances=distances, delete_points=True, metric_threshold=0.1
+        )
+
+        # Tomorrow map points to the same
+        # coordinate system
+
+        # calculate metrics per images
+        metrics_results = {}
+        metrics = []
+
+        if self.args["visualize"]:
+            util.visualize_images(
+                image_1_data,
+                image_2_data,
+                [bounds_1, bounds_2],
+                [],
+                [],
+                transform,
+                "misalign",
+            )
 
 
 def get_default_config(filename: PathLike = None):
