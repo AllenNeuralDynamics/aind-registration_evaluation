@@ -1,3 +1,6 @@
+"""
+Docs config
+"""
 # flake8: noqa: E402
 # Configuration file for the Sphinx documentation builder.
 #

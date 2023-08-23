@@ -35,6 +35,7 @@ We have the most common computer vision metrics to evaluate images. Here, we inc
 | Information Theoretic Similarity | issm     | :white_check_mark: Small     |
 | Peak Signal to Noise Ratio | psnr     | :white_check_mark: Large :white_check_mark: Small     |
 | Feature Similarity Index Metric  | fsim     | :white_check_mark: Small     |
+| Keypoint Similarity Alignment Metric  | ksam     | :white_check_mark: Small     |
 
 ## Transform matrix
 The matrix is in homogeneous coordinates. Therefore, for a 2D image the matrix will be:
@@ -70,6 +71,16 @@ The sampling options we have at the moment are:
 The available image formats at the moment are:
 - Zarr
 - Tiff
+
+## Keypoint Similarity Alignment Metric
+The keypoint similarity alignment metric is a metric that is currently being developed at the Allen Institute for Neural Dynamics as part of the image stitching evaluation protocol for large-scale image datasets. Please, refer to `/scripts/run_misalignment.py` example.
+
+These are some metric examples:
+- Image stitching alignment aberration
+![multichannel_misalign_2](https://github.com/AllenNeuralDynamics/aind-registration_evaluation/blob/main/images/multichannel_example_2.png?raw=true)
+
+- Improved image stitching alignment:
+![multichannel_misalign_2](https://github.com/AllenNeuralDynamics/aind-registration_evaluation/blob/main/images/multichannel_example.png?raw=true)
 
 ## Note
 > If you want to visualize points in the images, you could activate the visualize flag the package accepts. However, make sure these images are able to fix in memory.

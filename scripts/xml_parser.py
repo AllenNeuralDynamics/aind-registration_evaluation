@@ -104,7 +104,6 @@ class TeraStitcherXMLParser:
         # Mapping reference system
         refs = {}
         for ref, val in teras_dict["TeraStitcher"]["ref_sys"].items():
-
             val = int(val)
             negative = ""
             if val < 0:
@@ -201,10 +200,8 @@ class TeraStitcherXMLParser:
         return stacks
 
     def parse_terastitcher_xml(
-        self,
-        xml_path:PathLike,
-        encoding: str="utf-8"
-    ) -> dict:        
+        self, xml_path: PathLike, encoding: str = "utf-8"
+    ) -> dict:
         """
         Parses the terastitcher XML file
 
