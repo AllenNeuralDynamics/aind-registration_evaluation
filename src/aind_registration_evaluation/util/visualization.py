@@ -713,6 +713,7 @@ def visualize_misalignment_images(
         ax.add_patch(rectangle_image_1)
         ax.add_patch(rectangle_image_2)
 
+        plt.tight_layout()
         plt.show()
 
     else:

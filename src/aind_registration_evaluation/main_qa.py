@@ -38,6 +38,36 @@ LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
 
 
+def generate_overlap_slices(
+    shapes: List[Tuple], orientation: str, overlap_ratio: float
+):
+    image_1_shape = shapes[0]
+    image_2_shape = shapes[1]
+    # Getting overlapping area for images
+    overlap_area_1 = (np.array(image_1_shape) * overlap_ratio).astype(int)
+    overlap_area_2 = (np.array(image_2_shape) * overlap_ratio).astype(int)
+
+    if orientation == "x":
+        # Left
+        offset_img_1 = image_1_shape[1] - overlap_area_1[1]
+
+        slices_1 = (
+            slice(0, image_1_shape[0]),
+            slice(offset_img_1, image_1_shape[1]),
+        )
+        # Right
+        slices_2 = (slice(0, image_2_shape[0]), slice(0, overlap_area_2[1]))
+
+    else:
+        # Top
+        offset_img_1 = image_1_shape[0] - overlap_area_1[0], image_1_shape[0]
+        slices_1 = (slice(offset_img_1), slice(0, image_1_shape[1]))
+        # Bottom
+        slices_2 = (slice(0, overlap_area_1[0]), slice(0, image_1_shape[1]))
+
+    return slices_1, slices_2, offset_img_1
+
+
 def generate_key_features_per_img2d(
     img_2d, n_keypoints, pad_width, mode="energy"
 ):
@@ -106,6 +136,33 @@ def generate_key_features_per_img2d(
         "features": np.array(features),
         "response_img": img_response,
     }
+
+
+def remove_outliers(data, outlier_threshold=2):
+    mean = np.mean(data)
+    std_dev = np.std(data)
+
+    # Define the lower and upper bounds for identifying outliers
+    lower_bound = mean - outlier_threshold * std_dev
+    upper_bound = mean + outlier_threshold * std_dev
+
+    # Filter out the outliers
+    filtered_data = [x for x in data if lower_bound <= x <= upper_bound]
+
+    return filtered_data
+
+
+def calculate_central_value(data, central_type="mean", outlier_threshold=2):
+    filtered_data = remove_outliers(data, outlier_threshold)
+
+    if central_type == "mean":
+        central_value = np.mean(filtered_data)
+    elif central_type == "median":
+        central_value = np.median(filtered_data)
+    else:
+        raise ValueError("Invalid central_type. Choose 'mean' or 'median'.")
+
+    return central_value
 
 
 class EvalStitching(ArgSchemaParser):
@@ -239,13 +296,43 @@ class EvalStitching(ArgSchemaParser):
                     metric_name,
                 )
 
-    def run_misalignment(self):
+    def run_misalignment_2d(
+        self,
+        n_keypoints: int,
+        pad_width: int,
+        overlap_ratio: Optional[float] = 0.10,
+        orientation: Optional[str] = "x",
+    ) -> List[np.ndarray]:
         """
-        Args:
-            Evaluate block
-        """
+        Runs misalignment metric for stitching
+        evaluation using the overlap ratio that
+        goes from the left image to the right image.
+        Note: This example is for a 2D image
 
-        print(self.args)
+        Parameters
+        -----------
+        overlap_ratio: Optional[float]
+            Overlap between images.
+            Default: 0.1 -> 10%
+
+        orientation: Optional[str]
+            Overlap orientation
+            ["x", "y", "z"]
+
+        Raises
+        -----------
+        NotImplementedError:
+            If the image extension is not
+            ['.zarr', '.tiff', '.tif'].
+            Please, check the image factory
+            class inside the io package
+
+        Returns
+        -----------
+        List[float]
+            List of distances between the identified
+            keypoints in the images
+        """
 
         image_1_data = None
         image_2_data = None
@@ -287,22 +374,34 @@ class EvalStitching(ArgSchemaParser):
         )
 
         # Compute keypoints between images
-        n_keypoints = 200
-        pad_width = 40
+
+        slices_1, slices_2, offset_img_1 = generate_overlap_slices(
+            shapes=[image_1_shape, image_2_shape],
+            orientation=orientation,
+            overlap_ratio=overlap_ratio,
+        )
+
         img_1_dict = generate_key_features_per_img2d(
-            image_1_data, n_keypoints=n_keypoints, pad_width=pad_width
+            image_1_data[slices_1],
+            n_keypoints=n_keypoints,
+            pad_width=pad_width,
         )
         img_2_dict = generate_key_features_per_img2d(
-            image_2_data, n_keypoints=n_keypoints, pad_width=pad_width
+            image_2_data[slices_2],
+            n_keypoints=n_keypoints,
+            pad_width=pad_width,
         )
+
+        left_image_keypoints = img_1_dict["keypoints"]
+        right_image_keypoints = img_2_dict["keypoints"]
 
         feature_vector_img_1 = (
             img_1_dict["features"],
-            img_1_dict["keypoints"],
+            left_image_keypoints,
         )
         feature_vector_img_2 = (
             img_2_dict["features"],
-            img_2_dict["keypoints"],
+            right_image_keypoints,
         )
 
         distances = compute_feature_space_distances(
@@ -319,8 +418,12 @@ class EvalStitching(ArgSchemaParser):
         offset_ty = transform[0, -1]
         offset_tx = transform[1, -1]
 
-        left_image_keypoints = img_1_dict["keypoints"]
-        right_image_keypoints = img_2_dict["keypoints"]
+        # Moving image keypoints back to intersection area
+        if orientation == "y":
+            left_image_keypoints[:, 0] += offset_img_1
+        else:
+            # x
+            left_image_keypoints[:, 1] += offset_img_1
 
         right_image_keypoints[:, 0] += offset_ty
         right_image_keypoints[:, 1] += offset_tx
@@ -349,14 +452,15 @@ class EvalStitching(ArgSchemaParser):
         picked_left_points = np.array(picked_left_points)
         picked_right_points = np.array(picked_right_points)
 
-        median = np.median(point_distances)
-        mean = np.mean(point_distances)
-        print(
-            f"\n[!] Median euclidean distance in pixels/voxels: {median}"
+        median = calculate_central_value(
+            point_distances, central_type="median", outlier_threshold=1
         )
-        print(
-            f"[!] Mean euclidean distance in pixels/voxels: {mean}"
+        mean = calculate_central_value(
+            point_distances, central_type="mean", outlier_threshold=1
         )
+
+        print(f"\n[!] Median euclidean distance in pixels/voxels: {median}")
+        print(f"[!] Mean euclidean distance in pixels/voxels: {mean}")
 
         if self.args["visualize"]:
             util.visualize_misalignment_images(

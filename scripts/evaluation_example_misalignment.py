@@ -21,6 +21,14 @@ def main():
     default_config["image_1"] = BASE_PATH + "Ex_445_Em_469_sample.tif"
     default_config["image_2"] = BASE_PATH + "Ex_561_Em_593_sample.tif"
 
+    # default_config["image_1"] = BASE_PATH + "Ex_445_Em_469_440050_440050_479500_012120.png"
+    # default_config["image_2"] = BASE_PATH + "Ex_561_Em_593_440050_440050_479500_012120.png"
+
+    # default_config["image_1"] = BASE_PATH + "Ex_488_Em_525_468770_468770_830620_012820.zarr"
+    # default_config["image_2"] = BASE_PATH + "Ex_488_Em_525_501170_501170_830620_012820.zarr"
+    overlap_ratio = 1.0
+    n_keypoints = 200
+    pad_width = 50  # 5
     default_config["transform_matrix"] = [
         [1, 0, 0],  # Y -17
         [0, 1, 100],  # X 1800
@@ -55,7 +63,9 @@ def main():
     mod = EvalStitching(default_config)
 
     time_start = time.time()
-    mod.run_misalignment()
+    mod.run_misalignment_2d(
+        n_keypoints, pad_width, overlap_ratio=overlap_ratio, orientation="x"
+    )
     time_end = time.time()
     print(f"Time: {time_end-time_start}")
 
