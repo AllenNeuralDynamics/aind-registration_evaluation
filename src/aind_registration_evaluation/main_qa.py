@@ -212,12 +212,14 @@ class EvalStitching(ArgSchemaParser):
 
         image_1_shape = image_1_data.shape
         image_2_shape = image_2_data.shape
+        print(image_1_shape)
 
         # calculate extent of overlap using transforms
         # in common coordinate system (assume for image 1)
         bounds_1, bounds_2 = util.calculate_bounds(
             image_1_shape, image_2_shape, transform
         )
+        print("Bounds: ", bounds_1, bounds_2)
 
         # Sample points in overlapping bounds
         points = sample.sample_points_in_overlap(
@@ -459,6 +461,16 @@ class EvalStitching(ArgSchemaParser):
             point_distances, central_type="mean", outlier_threshold=1
         )
 
+        threshold = 5
+        point_distances_median_idx = np.where(
+            (point_distances >= median - threshold)
+            & (point_distances <= median + threshold)
+        )
+        point_distances_mean_idx = np.where(
+            (point_distances >= mean - threshold)
+            & (point_distances <= mean + threshold)
+        )
+
         print(f"\n[!] Median euclidean distance in pixels/voxels: {median}")
         print(f"[!] Mean euclidean distance in pixels/voxels: {mean}")
 
@@ -467,10 +479,20 @@ class EvalStitching(ArgSchemaParser):
                 image_1_data,
                 image_2_data,
                 [bounds_1, bounds_2],
-                picked_left_points,
-                picked_right_points,
+                picked_left_points[point_distances_median_idx],
+                picked_right_points[point_distances_median_idx],
                 transform,
                 f"Misalignment metric ch 445 - ch 561 - Error {median}",
+            )
+
+            util.visualize_misalignment_images(
+                image_1_data,
+                image_2_data,
+                [bounds_1, bounds_2],
+                picked_left_points[point_distances_mean_idx],
+                picked_right_points[point_distances_mean_idx],
+                transform,
+                f"Misalignment metric ch 445 - ch 561 - Error {mean}",
             )
 
 

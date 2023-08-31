@@ -28,10 +28,10 @@ def main():
     # default_config["image_2"] = BASE_PATH + "Ex_488_Em_525_501170_501170_830620_012820.zarr"
     overlap_ratio = 1.0
     n_keypoints = 200
-    pad_width = 50  # 5
+    pad_width = 20  # 5
     default_config["transform_matrix"] = [
         [1, 0, 0],  # Y -17
-        [0, 1, 100],  # X 1800
+        [0, 1, 0],  # X 1800
         [0, 0, 1],
     ]
 
