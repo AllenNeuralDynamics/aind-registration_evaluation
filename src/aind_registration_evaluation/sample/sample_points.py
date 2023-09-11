@@ -306,8 +306,6 @@ def kd_fft_keypoints(
         n_keypoints=n_keypoints,
     )
 
-    print("Identified min max points: ", len(max_points), len(min_points))
-
     # Computing bboxs based on window size = pad_width
     max_bboxs = kd_compute_bboxs_cubes(
         max_points, pad_width, response_img.shape
@@ -324,10 +322,6 @@ def kd_fft_keypoints(
         min_bboxs, overlap_threshold
     )
 
-    print(
-        "Idxs pruned max min: ", idxs_pruned_max_bboxs, idxs_pruned_min_bboxs
-    )
-
     pruned_max_points = max_points.copy()
     pruned_min_points = min_points.copy()
 
@@ -337,12 +331,6 @@ def kd_fft_keypoints(
 
     if len(idxs_pruned_min_bboxs):
         pruned_min_points = min_points[idxs_pruned_min_bboxs]
-
-    print(
-        "Identified min max points after suppression: ",
-        len(pruned_max_points),
-        len(pruned_min_points),
-    )
 
     return (
         np.concatenate((pruned_max_points, pruned_min_points), axis=0),
@@ -429,8 +417,6 @@ def kd_fft_energy_keypoints(
         n_keypoints=n_keypoints,
     )
 
-    print("Identified min max points: ", len(energy_points))
-
     # Computing bboxs based on window size = pad_width
     max_bboxs = kd_compute_bboxs_cubes(
         energy_points, pad_width, response_img.shape
@@ -441,16 +427,11 @@ def kd_fft_energy_keypoints(
         max_bboxs, overlap_threshold
     )
 
-    print("Idxs pruned max min: ", idxs_pruned_energy_bboxs)
     pruned_max_points = energy_points.copy()
 
     # Getting non-max prunned points
     if len(idxs_pruned_energy_bboxs):
         pruned_max_points = energy_points[idxs_pruned_energy_bboxs]
-
-    print(
-        "Identified energy points after suppression: ", len(pruned_max_points)
-    )
 
     return pruned_max_points, response_img
 

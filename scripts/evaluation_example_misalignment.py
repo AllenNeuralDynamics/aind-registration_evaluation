@@ -30,8 +30,8 @@ def main():
     n_keypoints = 200
     pad_width = 20  # 5
     default_config["transform_matrix"] = [
-        [1, 0, 0],  # Y -17
-        [0, 1, 0],  # X 1800
+        [1, 0, 40],  # Y -17
+        [0, 1, 100],  # X 1800
         [0, 0, 1],
     ]
 

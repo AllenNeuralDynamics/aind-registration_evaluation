@@ -60,10 +60,10 @@ def generate_overlap_slices(
 
     else:
         # Top
-        offset_img_1 = image_1_shape[0] - overlap_area_1[0], image_1_shape[0]
-        slices_1 = (slice(offset_img_1), slice(0, image_1_shape[1]))
+        offset_img_1 = image_1_shape[0] - overlap_area_1[0]
+        slices_1 = (slice(offset_img_1, image_1_shape[0]), slice(0, image_1_shape[1]))
         # Bottom
-        slices_2 = (slice(0, overlap_area_1[0]), slice(0, image_1_shape[1]))
+        slices_2 = (slice(0, overlap_area_2[0]), slice(0, image_2_shape[1]))
 
     return slices_1, slices_2, offset_img_1
 
@@ -414,6 +414,10 @@ class EvalStitching(ArgSchemaParser):
             distances=distances, delete_points=True, metric_threshold=0.1
         )
 
+        if not len(point_matches_pruned):
+            print("No keypoints found!")
+            return np.nan, np.nan
+
         # Tomorrow map points to the same
         # coordinate system
         # Working only with translation at the moment
@@ -494,6 +498,8 @@ class EvalStitching(ArgSchemaParser):
                 transform,
                 f"Misalignment metric ch 445 - ch 561 - Error {mean}",
             )
+        
+        return mean, median
 
 
 def get_default_config(filename: PathLike = None):

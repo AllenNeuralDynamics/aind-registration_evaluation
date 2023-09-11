@@ -387,11 +387,9 @@ def kd_gradient_magnitudes_and_orientations(derivated_images: List[np.array]):
         raise ValueError("Only 2D or 3D images are allowed")
 
     powered_derivatives = np.power(derivated_images, 2)
-    print("Powered derivatives: ", powered_derivatives.shape)
     sum_powered_derivatives = np.sum(powered_derivatives, axis=0)
     # also called radius in spherical coordinates
     gradient_magnitude = np.sqrt(sum_powered_derivatives)
-    print("Gradient magnitude: ", gradient_magnitude.shape)
     phi = None
     theta = None
 
