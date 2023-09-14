@@ -700,14 +700,14 @@ def visualize_misalignment_images(
         vmin_1, vmax_1 = np.percentile(image_1_data, (0.2, 99))
         vmin_2, vmax_2 = np.percentile(image_2_data, (0.2, 99))
         ax.imshow(
-            adjusted_img_1, alpha=alpha, vmin=vmin_1, vmax=vmax_1, cmap="Blues"
+            adjusted_img_1, alpha=alpha, vmin=vmin_1, vmax=vmax_1, cmap="gray"
         )
         ax.imshow(
             adjusted_img_2,
             alpha=alpha,
             vmin=vmin_2,
             vmax=vmax_2,
-            cmap="Oranges",
+            cmap="gray",
         )
 
         ax.add_patch(rectangle_image_1)

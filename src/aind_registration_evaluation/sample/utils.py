@@ -9,6 +9,8 @@ import numpy as np
 from natsort import natsorted
 from scipy.ndimage import sobel
 
+from aind_registration_evaluation._shared.types import ArrayLike
+
 
 def two_mult_closest(nums: List[int], target=int) -> List[int]:
     """
@@ -343,7 +345,18 @@ def kd_pad_fft_buterworth(image, pad_width=0):
     return inversed_img_fft
 
 
-def derivate_image_axis(image, axis: List[int], n_lvls=1):
+def derivate_image_axis(image: ArrayLike, axis: List[int]):  # , n_lvls=1):
+    """
+    Compute image derivatives
+
+    Parameters
+    -----------
+    image: ArrayLike
+        Image to apply nd derivatives
+
+    axis: List[int]
+        Axis where we want to derive
+    """
     if len(axis) == 0:
         ValueError("Please, provide a list with the axis")
 

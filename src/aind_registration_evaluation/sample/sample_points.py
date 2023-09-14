@@ -430,7 +430,9 @@ def kd_fft_energy_keypoints(
     pruned_max_points = energy_points.copy()
 
     # Getting non-max prunned points
-    if len(idxs_pruned_energy_bboxs):
+    if len(idxs_pruned_energy_bboxs) and isinstance(
+        idxs_pruned_energy_bboxs[0], int
+    ):
         pruned_max_points = energy_points[idxs_pruned_energy_bboxs]
 
     return pruned_max_points, response_img

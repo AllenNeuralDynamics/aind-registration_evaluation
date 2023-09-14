@@ -13,6 +13,7 @@ from argschema import ArgSchemaParser
 from scipy.ndimage import gaussian_filter
 
 from aind_registration_evaluation import sample, util
+from aind_registration_evaluation._shared.types import ArrayLike
 from aind_registration_evaluation.io import extract_data, get_data
 from aind_registration_evaluation.metric import (
     ImageMetricsFactory, compute_feature_space_distances,
@@ -61,73 +62,130 @@ def generate_overlap_slices(
     else:
         # Top
         offset_img_1 = image_1_shape[0] - overlap_area_1[0]
-        slices_1 = (slice(offset_img_1, image_1_shape[0]), slice(0, image_1_shape[1]))
+        slices_1 = (
+            slice(offset_img_1, image_1_shape[0]),
+            slice(0, image_1_shape[1]),
+        )
         # Bottom
         slices_2 = (slice(0, overlap_area_2[0]), slice(0, image_2_shape[1]))
 
     return slices_1, slices_2, offset_img_1
 
 
-def generate_key_features_per_img2d(
-    img_2d, n_keypoints, pad_width, mode="energy"
+def generate_feature_decriptors(
+    img: ArrayLike,
+    n_keypoints: int,
+    pad_width: int,
+    mode: Optional[str] = "energy",
+    gss_sigma: Optional[int] = 8,
 ):
+    """
+    Generates feature decriptors for 2D/3D
+    images.
+
+    Parameters
+    ----------
+    img: ArrayLike
+        Array with image data
+
+    n_keypoints: int
+        Number of keypoints to sample.
+
+    pad_width: int
+        Image padding for necessary for
+        non-linear filtering
+
+    mode: Optional[str]
+        Image filtering approach. We have two
+        options, one is energy with generates
+        the image energy using a Laplacian of
+        Gaussian-based approach while the second
+        uses maximum filtering to get maximas and
+        minimas.
+
+        Default: "energy"
+
+    gss_sigma: Optional[int]
+        Sigma in the gaussian filtering before
+        computing image derivatives.
+        Default: 8
+
+    Raises
+    ------------
+    NotImplementedError:
+        Whenever the image is not 2D or 3D
+
+    Returns
+    ------------
+    dict:
+        Dictionary with the feature decriptors,
+        keypoint locations and filtered image
+        (which represents the response image).
+    """
+
+    mode = mode.casefold()
+    mode_options = ["energy", "maxima"]
+
+    if img.ndim not in [2, 3]:
+        raise NotImplementedError("We require a 2D or 3D image")
+
+    if mode not in mode_options:
+        raise NotImplementedError(f"We only have 2 options: {mode_options}")
+
     if mode == "energy":
-        img_2d_keypoints_energy, img_response = kd_fft_energy_keypoints(
-            image=img_2d,
+        img_keypoints, img_response = kd_fft_energy_keypoints(
+            image=img,
             pad_width=pad_width,
             n_keypoints=n_keypoints,
         )
     else:
-        # maximum
-        img_2d_keypoints_energy, img_response = kd_fft_keypoints(
-            image=img_2d,
+        img_keypoints, img_response = kd_fft_keypoints(
+            image=img,
             pad_width=pad_width,
             n_keypoints=n_keypoints,
         )
 
-    dy_val, dx_val = derivate_image_axis(
-        gaussian_filter(img_2d, sigma=8), [0, 1]
+    # Getting image derivatives
+    derivatives = derivate_image_axis(
+        # Smoothing before
+        image=gaussian_filter(img, sigma=gss_sigma),
+        axis=list(range(img.ndim)),  # [0, 1, ..., Ndims]
     )
 
-    # img_2d_dy = np.zeros(img_2d.shape, dtype=img_2d.dtype)
-    # img_2d_dx = np.zeros(img_2d.shape, dtype=img_2d.dtype)
-
-    # dy_val = np.sqrt(dy_val)
-    # dx_val = np.sqrt(dx_val)
-
-    # f, ax = plt.subplots(1,2)
-
-    # ax[0].imshow(dy_val, cmap="gray")#vmin=0, vmax=0.2)
-    # ax[1].imshow(dx_val, cmap="gray") #vmin=0, vmax=0.2)
-    # plt.show()
-
-    # img_2d_dy[:-1, :] = np.float32(dy_val)
-    # img_2d_dx[:, :-1] = np.float32(dx_val)
-
+    # Getting image magnitude and orientations
     (
         gradient_magnitude,
         gradient_orientation,
         gradient_orientation_polar,
     ) = kd_gradient_magnitudes_and_orientations(
-        derivated_images=[dy_val, dx_val]  # [img_2d_dy, img_2d_dx]
+        derivated_images=derivatives  # [img_2d_dy, img_2d_dx]
     )
 
+    if img.ndim == 2:
+        gradient_orientations = [gradient_orientation]
+
+    else:
+        gradient_orientations = [
+            gradient_orientation_polar,
+            gradient_orientation,
+        ]
+
+    # Getting keypoint feature decriptors
     img_keypoints_features = [
         kd_compute_keypoints_hog(
             image_gradient_magnitude=gradient_magnitude,
-            image_gradient_orientation=[gradient_orientation],
+            image_gradient_orientation=gradient_orientations,
             keypoint=keypoint,
-            n_dims=2,
+            n_dims=img.ndim,
             window_size=16,
             bins=[8],
         )
-        for keypoint in img_2d_keypoints_energy
+        for keypoint in img_keypoints
     ]
 
     keypoints = []
     features = []
     for key_feat in img_keypoints_features:
-        # print(f"Keypoint {key_feat['keypoint']} feat shape: {key_feat['feature_vector'].shape}")
         keypoints.append(key_feat["keypoint"])
         features.append(key_feat["feature_vector"])
 
@@ -383,12 +441,12 @@ class EvalStitching(ArgSchemaParser):
             overlap_ratio=overlap_ratio,
         )
 
-        img_1_dict = generate_key_features_per_img2d(
+        img_1_dict = generate_feature_decriptors(
             image_1_data[slices_1],
             n_keypoints=n_keypoints,
             pad_width=pad_width,
         )
-        img_2_dict = generate_key_features_per_img2d(
+        img_2_dict = generate_feature_decriptors(
             image_2_data[slices_2],
             n_keypoints=n_keypoints,
             pad_width=pad_width,
@@ -486,7 +544,7 @@ class EvalStitching(ArgSchemaParser):
                 picked_left_points[point_distances_median_idx],
                 picked_right_points[point_distances_median_idx],
                 transform,
-                f"Misalignment metric ch 445 - ch 561 - Error {median}",
+                f"Misalignment metric - Error {median}",
             )
 
             util.visualize_misalignment_images(
@@ -496,9 +554,9 @@ class EvalStitching(ArgSchemaParser):
                 picked_left_points[point_distances_mean_idx],
                 picked_right_points[point_distances_mean_idx],
                 transform,
-                f"Misalignment metric ch 445 - ch 561 - Error {mean}",
+                f"Misalignment metric - Error {mean}",
             )
-        
+
         return mean, median
 
 
