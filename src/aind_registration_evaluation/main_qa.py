@@ -5,7 +5,6 @@ of large scale data.
 import logging
 import os
 from pathlib import Path
-from typing import Union
 
 import numpy as np
 import yaml
@@ -13,16 +12,15 @@ from argschema import ArgSchemaParser
 from scipy.ndimage import gaussian_filter
 
 from aind_registration_evaluation import sample, util
-from aind_registration_evaluation._shared.types import ArrayLike
+from aind_registration_evaluation._shared.types import ArrayLike, PathLike
 from aind_registration_evaluation.io import extract_data, get_data
 from aind_registration_evaluation.metric import (
     ImageMetricsFactory, compute_feature_space_distances,
     get_pairs_from_distances)
 from aind_registration_evaluation.params import EvalRegSchema
 from aind_registration_evaluation.sample import *
-
-# IO types
-PathLike = Union[str, Path]
+from aind_registration_evaluation.util.intersection import \
+    generate_overlap_slices
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -37,39 +35,6 @@ logging.disable("DEBUG")
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
-
-
-def generate_overlap_slices(
-    shapes: List[Tuple], orientation: str, overlap_ratio: float
-):
-    image_1_shape = shapes[0]
-    image_2_shape = shapes[1]
-    # Getting overlapping area for images
-    overlap_area_1 = (np.array(image_1_shape) * overlap_ratio).astype(int)
-    overlap_area_2 = (np.array(image_2_shape) * overlap_ratio).astype(int)
-
-    if orientation == "x":
-        # Left
-        offset_img_1 = image_1_shape[1] - overlap_area_1[1]
-
-        slices_1 = (
-            slice(0, image_1_shape[0]),
-            slice(offset_img_1, image_1_shape[1]),
-        )
-        # Right
-        slices_2 = (slice(0, image_2_shape[0]), slice(0, overlap_area_2[1]))
-
-    else:
-        # Top
-        offset_img_1 = image_1_shape[0] - overlap_area_1[0]
-        slices_1 = (
-            slice(offset_img_1, image_1_shape[0]),
-            slice(0, image_1_shape[1]),
-        )
-        # Bottom
-        slices_2 = (slice(0, overlap_area_2[0]), slice(0, image_2_shape[1]))
-
-    return slices_1, slices_2, offset_img_1
 
 
 def generate_feature_decriptors(
@@ -177,8 +142,8 @@ def generate_feature_decriptors(
             image_gradient_orientation=gradient_orientations,
             keypoint=keypoint,
             n_dims=img.ndim,
-            window_size=16,
-            bins=[8],
+            # window_size=16,
+            # bins=[8],
         )
         for keypoint in img_keypoints
     ]
@@ -188,6 +153,12 @@ def generate_feature_decriptors(
     for key_feat in img_keypoints_features:
         keypoints.append(key_feat["keypoint"])
         features.append(key_feat["feature_vector"])
+
+    # import matplotlib.pyplot as plt
+    # plt.imshow(img_response[10, ...])
+    # plt.show()
+
+    print("keypoint - features: ", len(keypoints), len(features))
 
     return {
         "keypoints": np.array(keypoints),
@@ -356,7 +327,7 @@ class EvalStitching(ArgSchemaParser):
                     metric_name,
                 )
 
-    def run_misalignment_2d(
+    def run_misalignment(
         self,
         n_keypoints: int,
         pad_width: int,
@@ -434,18 +405,19 @@ class EvalStitching(ArgSchemaParser):
         )
 
         # Compute keypoints between images
-
         slices_1, slices_2, offset_img_1 = generate_overlap_slices(
             shapes=[image_1_shape, image_2_shape],
             orientation=orientation,
             overlap_ratio=overlap_ratio,
         )
 
+        LOGGER.info("Getting keypoints and feature decriptors for image 1.")
         img_1_dict = generate_feature_decriptors(
             image_1_data[slices_1],
             n_keypoints=n_keypoints,
             pad_width=pad_width,
         )
+        LOGGER.info("Getting keypoints and feature decriptors for image 2.")
         img_2_dict = generate_feature_decriptors(
             image_2_data[slices_2],
             n_keypoints=n_keypoints,
@@ -464,6 +436,7 @@ class EvalStitching(ArgSchemaParser):
             right_image_keypoints,
         )
 
+        LOGGER.info("Computing pair-wise feature space distances")
         distances = compute_feature_space_distances(
             feature_vector_img_1, feature_vector_img_2, feature_weight=0.2
         )
@@ -533,8 +506,9 @@ class EvalStitching(ArgSchemaParser):
             & (point_distances <= mean + threshold)
         )
 
-        print(f"\n[!] Median euclidean distance in pixels/voxels: {median}")
-        print(f"[!] Mean euclidean distance in pixels/voxels: {mean}")
+        unit = "pixels" if image_1_data.ndim == 2 else "voxels"
+        LOGGER.info(f"\n[!] Median euclidean distance in {unit}: {median}")
+        LOGGER.info(f"[!] Mean euclidean distance in {unit}: {mean}")
 
         if self.args["visualize"]:
             util.visualize_misalignment_images(

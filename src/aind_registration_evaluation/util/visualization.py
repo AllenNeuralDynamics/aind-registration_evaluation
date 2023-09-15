@@ -717,7 +717,79 @@ def visualize_misalignment_images(
         plt.show()
 
     else:
-        pass
+        # return
+        # 3D image, find a way to render 3D images with 3D grid
+
+        size_x = max(bounds_1[1][0], bounds_2[1][0])
+        size_y = max(bounds_1[1][1], bounds_2[1][1])
+        size_z = max(bounds_1[1][2], bounds_2[1][2])
+
+        # Image within same coordinate system
+        adjusted_img_1 = np.ones((size_x, size_y, size_z)) * 255
+        adjusted_img_2 = np.ones((size_x, size_y, size_z)) * 255
+
+        # Getting data from the images to common coordinate image
+        adjusted_img_1[
+            : bounds_1[1][0], : bounds_1[1][1], : bounds_1[1][2]
+        ] = image_1_data
+        adjusted_img_2[
+            bounds_2[0][0] :, bounds_2[0][1] :, bounds_2[0][2] :
+        ] = image_2_data
+
+        # Setting Z, Y, X positions of points within the grid
+        z_points_img_1 = [point[0] for point in keypoints_img_1]
+        y_points_img_1 = [point[1] for point in keypoints_img_1]
+        x_points_img_1 = [point[2] for point in keypoints_img_1]
+
+        # Setting Z,Y,X positions of points within the grid
+        # that were used to metric estimation
+        z_points_img_2 = [point[0] for point in keypoints_img_2]
+        y_points_img_2 = [point[1] for point in keypoints_img_2]
+        x_points_img_2 = [point[2] for point in keypoints_img_2]
+
+        points_img_1 = [z_points_img_1, y_points_img_1, x_points_img_1]
+        points_img_2 = [z_points_img_2, y_points_img_2, x_points_img_2]
+
+        # visualize_image_3D(combined_volume, points, selected_points)
+
+        # Rectangles to divide images
+        rectangle_image_1 = Rectangle(
+            xy=(bounds_1[0][2], bounds_1[0][1]),
+            width=bounds_1[1][2],
+            height=bounds_1[1][1],
+            linewidth=1,
+            edgecolor="#FF2D00",
+            facecolor="none",
+            linestyle=":",
+        )
+
+        rectangle_image_2 = Rectangle(
+            xy=(bounds_2[0][2], bounds_2[0][1]),
+            width=bounds_1[1][2],
+            height=bounds_1[1][1],
+            linewidth=1,
+            edgecolor="#13FF00",
+            facecolor="none",
+            linestyle="--",
+        )
+
+        fig, ax = plt.subplots(nrows=1, ncols=1)
+        fig.suptitle(f"Metric: {metric_name}", fontsize=16)
+
+        tracker = SliceTracker(
+            fig_axes=ax,
+            image_1_data=adjusted_img_1,
+            image_2_data=adjusted_img_2,
+            points=points_img_1,
+            selected_ponts=points_img_2,
+            # rectangles=[rectangle_image_1, rectangle_image_2]
+        )
+
+        ax.add_patch(rectangle_image_1)
+        ax.add_patch(rectangle_image_2)
+        fig.canvas.mpl_connect("scroll_event", tracker.on_scroll)
+        fig.tight_layout()
+        plt.show()
 
 
 def plot_matches(

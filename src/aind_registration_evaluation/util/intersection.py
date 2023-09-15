@@ -368,3 +368,76 @@ def kd_compute_bboxs_cubes(
         )
 
     return img_geometries
+
+
+def generate_overlap_slices(
+    shapes: List[Tuple], orientation: str, overlap_ratio: float
+) -> tuple:
+    """
+    Generate the slices of the overlap region between two
+    images. Images could be 2D or 3D.
+
+    Parameters
+    ------------
+    shapes: List[tuple]
+        List of shapes where position 0 represents
+        image 1 and position 1 image 2.
+
+    orientation: str
+        Overlap orientation. It could be ["z", "y", "x"]
+
+    overlap_ratio: float
+        Overlap percentage between the images in the given
+        orientation.
+
+    Raises
+    ------------
+    NotImplementedError:
+        If the image is not 2D or 3D
+
+    Returns
+    ------------
+    tuple:
+        Tuple with the slices of the overlap region
+        and the offset.
+    """
+    image_1_shape = shapes[0]
+    image_2_shape = shapes[1]
+    ndims = len(image_1_shape)
+
+    if ndims not in [2, 3]:
+        raise NotImplementedError("Only 2D or 3D images available")
+
+    # Getting overlapping area for images
+    overlap_area_1 = (np.array(image_1_shape) * overlap_ratio).astype(int)
+    overlap_area_2 = (np.array(image_2_shape) * overlap_ratio).astype(int)
+
+    iterate_reverse_axis = list(range(-ndims, 0, 1))
+
+    if orientation == "x":
+        curr_axis = -1
+    elif orientation == "y":
+        curr_axis = -2
+    elif orientation == "z":
+        curr_axis = -3
+    else:
+        raise NotImplementedError("Only ZYX orientations accepted")
+
+    if orientation == "z" and ndims != 3:
+        raise ValueError("Please, provide a 3D array for z orientation")
+
+    offset_img_1 = image_1_shape[curr_axis] - overlap_area_1[curr_axis]
+
+    # Order must be ZYX
+    slices_1 = []
+    slices_2 = []
+
+    for ax in iterate_reverse_axis:
+        if ax == curr_axis:
+            slices_1.append(slice(offset_img_1, image_1_shape[ax]))
+            slices_2.append(slice(0, overlap_area_2[ax]))
+        else:
+            slices_1.append(slice(0, image_1_shape[ax]))
+            slices_2.append(slice(0, image_2_shape[ax]))
+
+    return tuple(slices_1), tuple(slices_2), offset_img_1

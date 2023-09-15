@@ -41,8 +41,19 @@ def main():
 
     # BASE_PATH = "/Users/camilo.laiton/Documents/Stitching datasets/SmartSPIM_AK030_sample/"
 
-    # default_config["image_1"] = os.path.abspath(BASE_PATH + "block_10.tif")
-    # default_config["image_2"] = os.path.abspath(BASE_PATH + "block_10.tif")
+    # default_config["image_1"] = BASE_PATH + "block_10.tif"
+    # default_config["image_2"] = BASE_PATH + "block_10.tif"
+
+    # overlap_ratio = 1.0
+    # n_keypoints = 200
+    # pad_width = 5  # 5
+
+    # default_config["transform_matrix"] = [
+    #     [1, 0, 0, 0],  # Z
+    #     [0, 1, 0, 0],  # Y
+    #     [0, 0, 1, 100],  # X
+    #     [0, 0, 0, 1],
+    # ]
 
     # default_config["image_1"] = os.path.abspath(
     #     BASE_PATH + "test_black_3d_image.tiff"
@@ -50,13 +61,6 @@ def main():
     # default_config["image_2"] = os.path.abspath(
     #     BASE_PATH + "test_black_3d_image.tiff"
     # )
-
-    # default_config["transform_matrix"] = [
-    #     [1, 0, 0, 0],  # Z
-    #     [0, 1, 0, 0],  # Y
-    #     [0, 0, 1, 0],  # X
-    #     [0, 0, 0, 1],
-    # ]
 
     default_config["visualize"] = True
 
@@ -67,7 +71,7 @@ def main():
     mod = EvalStitching(default_config)
 
     time_start = time.time()
-    mod.run_misalignment_2d(
+    mod.run_misalignment(
         n_keypoints, pad_width, overlap_ratio=overlap_ratio, orientation="x"
     )
     time_end = time.time()

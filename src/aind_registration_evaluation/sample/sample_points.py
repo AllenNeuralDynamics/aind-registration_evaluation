@@ -584,7 +584,11 @@ def kd_compute_keypoints_hog(
                     cell_orientation_z_xy = region_orientation_z_yx[quadrant]
                     _range = ((-180, 180), (-90, 90))
 
-                    hist, hist_bins = np.histogram2d(
+                    (
+                        hist,
+                        hist_bins_polar,
+                        hist_bins_elevation,
+                    ) = np.histogram2d(
                         cell_orientation_z_xy.flatten(),
                         cell_orientation_yx.flatten(),
                         bins=bins,
@@ -594,7 +598,12 @@ def kd_compute_keypoints_hog(
                     )
 
                     # Recomputing angles since histogram returns bins + 1
-                    hist_bins = (hist_bins[:-1] + hist_bins[1:]) / 2.0
+                    hist_bins_polar = (
+                        hist_bins_polar[:-1] + hist_bins_polar[1:]
+                    ) / 2.0
+                    hist_bins_elevation = (
+                        hist_bins_elevation[:-1] + hist_bins_elevation[1:]
+                    ) / 2.0
                     weighted_gradient_hist.append(hist)
 
     feature_vector = np.array(weighted_gradient_hist)
