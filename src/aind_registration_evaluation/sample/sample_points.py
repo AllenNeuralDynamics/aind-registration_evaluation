@@ -217,13 +217,13 @@ def sample_points_in_overlap(
 
 def kd_max_min_local_points(
     image,
-    maximum_filter_size,
+    filter_size,
     pad_width=0,
     max_relative_threshold=0.2,
     min_relative_threshold=0.2,
     n_keypoints=100,
 ):
-    image_max_filter = maximum_filter(image, size=maximum_filter_size)
+    image_max_filter = maximum_filter(image, size=filter_size)
 
     if pad_width > 0:
         pad_img_shape = image_max_filter.shape
@@ -239,7 +239,7 @@ def kd_max_min_local_points(
     # Getting local max points
     maxima_coordinates = peak_local_max(
         image=image_max_filter,
-        min_distance=maximum_filter_size * 2,
+        min_distance=filter_size,
         threshold_rel=max_relative_threshold,
         num_peaks=n_keypoints,
     )
@@ -247,7 +247,7 @@ def kd_max_min_local_points(
     # Getting local minima points
     minima_coordinates = peak_local_max(
         image=-image_max_filter,
-        min_distance=maximum_filter_size * 2,
+        min_distance=filter_size,
         threshold_rel=min_relative_threshold,
         num_peaks=n_keypoints,
     )
@@ -258,7 +258,7 @@ def kd_max_min_local_points(
 def kd_max_energy_points(
     image: np.array,
     sigma: int,
-    maximum_filter_size: int,
+    filter_size: int,
     pad_width: Optional[int] = 0,
     max_relative_threshold: Optional[float] = 0.2,
     n_keypoints: Optional[int] = 100,
@@ -278,7 +278,7 @@ def kd_max_energy_points(
     # Getting local max points
     max_energy_points = peak_local_max(
         image=image_gaussian_laplaced,
-        min_distance=maximum_filter_size * 2,
+        min_distance=filter_size,
         threshold_rel=max_relative_threshold,
         num_peaks=n_keypoints,
     )
@@ -288,6 +288,7 @@ def kd_max_energy_points(
 
 def kd_fft_keypoints(
     image,
+    filter_size: int,
     pad_width=0,
     max_relative_threshold=0.2,
     min_relative_threshold=0.05,
@@ -296,10 +297,9 @@ def kd_fft_keypoints(
 ):
     inversed_fft_image = kd_pad_fft_buterworth(image, pad_width=pad_width)
 
-    maximum_filter_size = pad_width // 4
     max_points, min_points, response_img = kd_max_min_local_points(
         inversed_fft_image,
-        maximum_filter_size=maximum_filter_size,
+        filter_size=filter_size,
         pad_width=pad_width,
         max_relative_threshold=max_relative_threshold,
         min_relative_threshold=min_relative_threshold,
@@ -340,6 +340,7 @@ def kd_fft_keypoints(
 
 def kd_fft_energy_keypoints(
     image: np.ndarray,
+    filter_size: int,
     pad_width: Optional[int] = 0,
     sigma: Optional[int] = 9,
     max_relative_threshold: Optional[float] = 0.2,
@@ -406,12 +407,11 @@ def kd_fft_energy_keypoints(
         after applying filtering
     """
     inversed_fft_image = kd_pad_fft_buterworth(image, pad_width=pad_width)
-    maximum_filter_size = pad_width // 4
 
     energy_points, response_img = kd_max_energy_points(
         image=inversed_fft_image,
         sigma=sigma,
-        maximum_filter_size=maximum_filter_size,
+        filter_size=filter_size,
         pad_width=pad_width,
         max_relative_threshold=max_relative_threshold,
         n_keypoints=n_keypoints,

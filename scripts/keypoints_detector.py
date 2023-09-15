@@ -64,12 +64,16 @@ def test_fft_max_min_keypoints(img_1, img_2):
         max_img_1_keypoints,
         min_img_1_keypoints,
         filtered_img_1,
-    ) = kd_fft_keypoints(image=img_1, pad_width=pad_width)
+    ) = kd_fft_keypoints(
+        image=img_1, pad_width=pad_width, filter_size=filter_size
+    )
     (
         max_img_2_keypoints,
         min_img_2_keypoints,
         filtered_img_2,
-    ) = kd_fft_keypoints(image=img_2, pad_width=pad_width)
+    ) = kd_fft_keypoints(
+        image=img_2, pad_width=pad_width, filter_size=filter_size
+    )
 
     # comparison img1 filters
     f, axarr = plt.subplots(1, 2)
@@ -172,12 +176,13 @@ def test_fft_max_min_keypoints(img_1, img_2):
 
 
 def generate_key_features_per_img2d(
-    img_2d, n_keypoints, pad_width, mode="energy"
+    img_2d, n_keypoints, pad_width, filter_size, sigma=9, mode="energy"
 ):
     if mode == "energy":
         img_2d_keypoints_energy, img_response = kd_fft_energy_keypoints(
             image=img_2d,
             pad_width=pad_width,
+            filter_size=filter_size,
             n_keypoints=n_keypoints,
         )
     else:
@@ -185,11 +190,12 @@ def generate_key_features_per_img2d(
         img_2d_keypoints_energy, img_response = kd_fft_keypoints(
             image=img_2d,
             pad_width=pad_width,
+            filter_size=filter_size,
             n_keypoints=n_keypoints,
         )
 
     dy_val, dx_val = derivate_image_axis(
-        gaussian_filter(img_2d, sigma=8), [0, 1]
+        gaussian_filter(img_2d, sigma=sigma), [0, 1]
     )
 
     # img_2d_dy = np.zeros(img_2d.shape, dtype=img_2d.dtype)
@@ -265,10 +271,6 @@ def test_fft_max_keypoints(img_1, img_2):
         distances=distances, delete_points=False  # , metric_threshold=0.1
     )
 
-    print(
-        f"N keypoints img_1: {img_1_dict['keypoints'].shape} img_2: {img_2_dict['keypoints'].shape}"
-    )
-
     # Showing only points
     # comparison img1 filters
     print("\n Keypoint confidence img 1")
@@ -290,6 +292,10 @@ def test_fft_max_keypoints(img_1, img_2):
                 img_2_dict["keypoints"][key_idx][1],
             ],
         )
+
+    print(
+        f"N keypoints img_1: {img_1_dict['keypoints'].shape} img_2: {img_2_dict['keypoints'].shape}"
+    )
 
     f, axarr = plt.subplots(1, 2)
     f.suptitle("Image 1", fontsize=20)
@@ -462,13 +468,21 @@ def test_fft_max_keypoints(img_1, img_2):
     plt.show()
 
 
-def test_fft_energy_keypoints(img_1, img_2, pad_width):
+def test_fft_energy_keypoints(img_1, img_2, pad_width, filter_size, sigma):
     n_keypoints = 200
     img_1_dict = generate_key_features_per_img2d(
-        img_1, n_keypoints=n_keypoints, pad_width=pad_width
+        img_1,
+        n_keypoints=n_keypoints,
+        pad_width=pad_width,
+        filter_size=filter_size,
+        sigma=sigma,
     )
     img_2_dict = generate_key_features_per_img2d(
-        img_2, n_keypoints=n_keypoints, pad_width=pad_width
+        img_2,
+        n_keypoints=n_keypoints,
+        pad_width=pad_width,
+        filter_size=filter_size,
+        sigma=sigma,
     )
 
     feature_vector_img_1 = (img_1_dict["features"], img_1_dict["keypoints"])
@@ -479,15 +493,11 @@ def test_fft_energy_keypoints(img_1, img_2, pad_width):
     )
 
     point_matches_pruned = get_pairs_from_distances(
-        distances=distances, delete_points=True, metric_threshold=0.1
+        distances=distances.copy(), delete_points=True, metric_threshold=0.1
     )
 
     point_matches_not_pruned = get_pairs_from_distances(
-        distances=distances, delete_points=False, metric_threshold=0.1
-    )
-
-    print(
-        f"N keypoints img_1: {img_1_dict['keypoints'].shape} img_2: {img_2_dict['keypoints'].shape}"
+        distances=distances.copy(), delete_points=False, metric_threshold=0.1
     )
 
     # Showing only points
@@ -511,6 +521,11 @@ def test_fft_energy_keypoints(img_1, img_2, pad_width):
                 img_2_dict["keypoints"][key_idx][1],
             ],
         )
+
+    print("N points after prunning: ", len(point_matches_pruned.keys()))
+    print(
+        f"N keypoints img_1: {img_1_dict['keypoints'].shape} img_2: {img_2_dict['keypoints'].shape}"
+    )
 
     f, axarr = plt.subplots(1, 2)
     f.suptitle("Image 1", fontsize=20)
@@ -777,37 +792,43 @@ def test_img_3d_orientations(img_3d):
 def main():
     BASE_PATH = "/Users/camilo.laiton/Documents/images/"
 
-    # img_1_path = BASE_PATH + "Ex_488_Em_525_468770_468770_830620_012820.zarr/0"
-    # img_2_path = BASE_PATH + "Ex_488_Em_525_501170_501170_830620_012820.zarr/0"
+    img_1_path = BASE_PATH + "Ex_488_Em_525_468770_468770_830620_012820.zarr/0"
+    img_2_path = BASE_PATH + "Ex_488_Em_525_501170_501170_830620_012820.zarr/0"
 
-    # img_3D_path = BASE_PATH + "block_10.tif"
+    img_3D_path = BASE_PATH + "block_10.tif"
 
-    # img_1 = zarr.open(img_1_path, "r")[0, 0, 0, :, 1800:]
-    # img_2 = zarr.open(img_2_path, "r")[0, 0, 0, :, :200]
-    # img_3d = tif.imread(img_3D_path)[120:184, 200:456, 200:456]
+    img_1 = zarr.open(img_1_path, "r")[0, 0, 0, :, 1800:]
+    img_2 = zarr.open(img_2_path, "r")[0, 0, 0, :, :200]
+    img_3d = tif.imread(img_3D_path)[120:184, 200:456, 200:456]
 
     # New SmartSPIM test, interchannel
-    ch_445_sample_path = (
-        BASE_PATH + "Ex_445_Em_469_440050_440050_479500_012120.png"
-    )
-    ch_561_sample_path = (
-        BASE_PATH + "Ex_561_Em_593_440050_440050_479500_012120.png"
-    )
+    # ch_445_sample_path = (
+    #     BASE_PATH + "Ex_445_Em_469_440050_440050_479500_012120.png"
+    # )
+    # ch_561_sample_path = (
+    #     BASE_PATH + "Ex_561_Em_593_440050_440050_479500_012120.png"
+    # )
 
-    full_ch_445_sample_path = BASE_PATH + "Ex_445_Em_469_sample.tif"
-    full_ch_561_sample_path = BASE_PATH + "Ex_561_Em_593_sample.tif"
+    # full_ch_445_sample_path = BASE_PATH + "Ex_445_Em_469_sample.tif"
+    # full_ch_561_sample_path = BASE_PATH + "Ex_561_Em_593_sample.tif"
 
     # ch_445_data = iio.imread(ch_445_sample_path)
     # ch_561_data = iio.imread(ch_561_sample_path)
 
-    ch_445_data = tif.imread(full_ch_445_sample_path)
-    ch_561_data = tif.imread(full_ch_561_sample_path)
+    # ch_445_data = tif.imread(full_ch_445_sample_path)
+    # ch_561_data = tif.imread(full_ch_561_sample_path)
 
     # print("3D image shape: ", img_3d.shape)
 
     # test_img_2d_orientations(img_3d[10, :, :])# (img_1)#
     # test_img_3d_orientations(img_3d)
-    test_fft_energy_keypoints(ch_445_data, ch_561_data, pad_width=40)
+    test_fft_energy_keypoints(
+        img_1,  # ch_445_data,
+        img_2,  # ch_561_data,
+        pad_width=30,
+        filter_size=5,
+        sigma=9,
+    )
     # test_fft_max_keypoints(img_1, img_2)
 
 

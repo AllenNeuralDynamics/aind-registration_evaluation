@@ -32,7 +32,9 @@ def main():
     )
     overlap_ratio = 0.1
     n_keypoints = 200
-    pad_width = 20  # 5
+    pad_width = 30  # 5
+    filter_size = 5
+    gss_sigma = 9
     default_config["transform_matrix"] = [
         [1, 0, 0],  # Y -17
         [0, 1, 1800],  # X 1800
@@ -46,12 +48,14 @@ def main():
 
     # overlap_ratio = 1.0
     # n_keypoints = 200
-    # pad_width = 5  # 5
+    # pad_width = 20  # 5
+    # filter_size = 5
+    # gss_sigma = 9
 
     # default_config["transform_matrix"] = [
     #     [1, 0, 0, 0],  # Z
     #     [0, 1, 0, 0],  # Y
-    #     [0, 0, 1, 100],  # X
+    #     [0, 0, 1, 200],  # X
     #     [0, 0, 0, 1],
     # ]
 
@@ -72,7 +76,13 @@ def main():
 
     time_start = time.time()
     mod.run_misalignment(
-        n_keypoints, pad_width, overlap_ratio=overlap_ratio, orientation="x"
+        n_keypoints=n_keypoints,
+        pad_width=pad_width,
+        filter_size=filter_size,
+        gss_sigma=gss_sigma,
+        overlap_ratio=overlap_ratio,
+        orientation="x",
+        mode="energy",
     )
     time_end = time.time()
     print(f"Time: {time_end-time_start}")

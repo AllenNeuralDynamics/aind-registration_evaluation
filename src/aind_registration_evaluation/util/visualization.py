@@ -470,6 +470,49 @@ def visualize_images(
         plt.show()
 
 
+def generate_new_boundaries(bounds_1, bounds_2, ty, tx):
+    """
+    Generates new boundaries to plot
+    two images in the same coordinate
+    system given an image transformation
+    """
+    lower_bound_1, upper_bound_1 = None, None
+    lower_bound_2, upper_bound_2 = None, None
+
+    if ty >= 0:
+        lower_bound_1 = [bounds_1[0][0]]
+        upper_bound_1 = [bounds_1[1][0]]
+
+        lower_bound_2 = [bounds_2[0][0]]
+        upper_bound_2 = [bounds_2[1][0]]
+
+    else:
+        lower_bound_1 = [abs(ty)]
+        upper_bound_1 = [bounds_2[1][0] + abs(ty) * 2]
+
+        lower_bound_2 = [bounds_1[0][0]]
+        upper_bound_2 = [bounds_1[1][0]]
+
+    if tx >= 0:
+        lower_bound_1.append(bounds_1[0][1])
+        upper_bound_1.append(bounds_1[1][1])
+
+        lower_bound_2.append(bounds_2[0][1])
+        upper_bound_2.append(bounds_2[1][1])
+
+    else:
+        lower_bound_1 = [bounds_2[0][1]]
+        upper_bound_1 = [bounds_2[1][1]]
+
+        lower_bound_2 = [bounds_1[0][1]]
+        upper_bound_2 = [bounds_1[1][1]]
+
+    img_1_bounds = [lower_bound_1, upper_bound_1]
+    img_2_bounds = [lower_bound_2, upper_bound_2]
+
+    return img_1_bounds, img_2_bounds
+
+
 def visualize_misalignment_images(
     image_1_data: ArrayLike,
     image_2_data: ArrayLike,
@@ -508,56 +551,14 @@ def visualize_misalignment_images(
         Metric name for the set of points
     """
 
-    def generate_new_boundaries():
-        """
-        Generates new boundaries to plot
-        two images in the same coordinate
-        system given an image transformation
-        """
-        lower_bound_1, upper_bound_1 = None, None
-        lower_bound_2, upper_bound_2 = None, None
-
-        if ty >= 0:
-            lower_bound_1 = [bounds_1[0][0]]
-            upper_bound_1 = [bounds_1[1][0]]
-
-            lower_bound_2 = [bounds_2[0][0]]
-            upper_bound_2 = [bounds_2[1][0]]
-
-        else:
-            lower_bound_1 = [abs(ty)]
-            upper_bound_1 = [bounds_2[1][0] + abs(ty) * 2]
-
-            lower_bound_2 = [bounds_1[0][0]]
-            upper_bound_2 = [bounds_1[1][0]]
-
-        if tx >= 0:
-            lower_bound_1.append(bounds_1[0][1])
-            upper_bound_1.append(bounds_1[1][1])
-
-            lower_bound_2.append(bounds_2[0][1])
-            upper_bound_2.append(bounds_2[1][1])
-
-        else:
-            lower_bound_1 = [bounds_2[0][1]]
-            upper_bound_1 = [bounds_2[1][1]]
-
-            lower_bound_2 = [bounds_1[0][1]]
-            upper_bound_2 = [bounds_1[1][1]]
-
-        img_1_bounds = [lower_bound_1, upper_bound_1]
-        img_2_bounds = [lower_bound_2, upper_bound_2]
-
-        return img_1_bounds, img_2_bounds
-
     if image_1_data.ndim != image_2_data.ndim:
         raise ValueError("Images should have the same shape")
 
     if image_1_data.ndim > 3:
         raise ValueError("Only 2D/3D images are supported")
 
-    bounds_1 = bounds[0]
-    bounds_2 = bounds[1]
+    unpacked_bounds_1 = bounds[0]
+    unpacked_bounds_2 = bounds[1]
     # from scipy.ndimage import rotate
 
     if image_1_data.ndim == 2:
@@ -572,8 +573,9 @@ def visualize_misalignment_images(
 
         # size_x = max(bounds_1[1][0], bounds_2[1][0])
         # size_y = max(bounds_1[1][1], bounds_2[1][1])
-
-        img_1_bounds, img_2_bounds = generate_new_boundaries()
+        img_1_bounds, img_2_bounds = generate_new_boundaries(
+            unpacked_bounds_1, unpacked_bounds_2, ty, tx
+        )
 
         # Image within same coordinate system
         adjusted_img_1 = np.ones((size_y, size_x)) * 255
@@ -699,15 +701,16 @@ def visualize_misalignment_images(
         alpha = 0.5
         vmin_1, vmax_1 = np.percentile(image_1_data, (0.2, 99))
         vmin_2, vmax_2 = np.percentile(image_2_data, (0.2, 99))
+        cmap = "gray"
         ax.imshow(
-            adjusted_img_1, alpha=alpha, vmin=vmin_1, vmax=vmax_1, cmap="gray"
+            adjusted_img_1, alpha=alpha, vmin=vmin_1, vmax=vmax_1, cmap=cmap
         )
         ax.imshow(
             adjusted_img_2,
             alpha=alpha,
             vmin=vmin_2,
             vmax=vmax_2,
-            cmap="gray",
+            cmap=cmap,
         )
 
         ax.add_patch(rectangle_image_1)
@@ -717,79 +720,77 @@ def visualize_misalignment_images(
         plt.show()
 
     else:
-        # return
-        # 3D image, find a way to render 3D images with 3D grid
+        pass
+        # size_x = max(bounds_1[1][0], bounds_2[1][0])
+        # size_y = max(bounds_1[1][1], bounds_2[1][1])
+        # size_z = max(bounds_1[1][2], bounds_2[1][2])
 
-        size_x = max(bounds_1[1][0], bounds_2[1][0])
-        size_y = max(bounds_1[1][1], bounds_2[1][1])
-        size_z = max(bounds_1[1][2], bounds_2[1][2])
+        # # Image within same coordinate system
+        # adjusted_img_1 = np.ones((size_x, size_y, size_z)) * 255
+        # adjusted_img_2 = np.ones((size_x, size_y, size_z)) * 255
 
-        # Image within same coordinate system
-        adjusted_img_1 = np.ones((size_x, size_y, size_z)) * 255
-        adjusted_img_2 = np.ones((size_x, size_y, size_z)) * 255
+        # # Getting data from the images to common coordinate image
+        # adjusted_img_1[
+        #     : bounds_1[1][0], : bounds_1[1][1], : bounds_1[1][2]
+        # ] = image_1_data
+        # adjusted_img_2[
+        #     bounds_2[0][0] :, bounds_2[0][1] :, bounds_2[0][2] :
+        # ] = image_2_data
 
-        # Getting data from the images to common coordinate image
-        adjusted_img_1[
-            : bounds_1[1][0], : bounds_1[1][1], : bounds_1[1][2]
-        ] = image_1_data
-        adjusted_img_2[
-            bounds_2[0][0] :, bounds_2[0][1] :, bounds_2[0][2] :
-        ] = image_2_data
+        # # Setting Z, Y, X positions of points within the grid
+        # z_points_img_1 = [point[0] for point in keypoints_img_1]
+        # y_points_img_1 = [point[1] for point in keypoints_img_1]
+        # x_points_img_1 = [point[2] for point in keypoints_img_1]
 
-        # Setting Z, Y, X positions of points within the grid
-        z_points_img_1 = [point[0] for point in keypoints_img_1]
-        y_points_img_1 = [point[1] for point in keypoints_img_1]
-        x_points_img_1 = [point[2] for point in keypoints_img_1]
+        # # Setting Z,Y,X positions of points within the grid
+        # # that were used to metric estimation
+        # z_points_img_2 = [point[0] for point in keypoints_img_2]
+        # y_points_img_2 = [point[1] for point in keypoints_img_2]
+        # x_points_img_2 = [point[2] for point in keypoints_img_2]
 
-        # Setting Z,Y,X positions of points within the grid
-        # that were used to metric estimation
-        z_points_img_2 = [point[0] for point in keypoints_img_2]
-        y_points_img_2 = [point[1] for point in keypoints_img_2]
-        x_points_img_2 = [point[2] for point in keypoints_img_2]
+        # points_img_1 = [z_points_img_1, y_points_img_1, x_points_img_1]
+        # points_img_2 = [z_points_img_2, y_points_img_2, x_points_img_2]
 
-        points_img_1 = [z_points_img_1, y_points_img_1, x_points_img_1]
-        points_img_2 = [z_points_img_2, y_points_img_2, x_points_img_2]
+        # # visualize_image_3D(combined_volume, points, selected_points)
 
-        # visualize_image_3D(combined_volume, points, selected_points)
+        # # Rectangles to divide images
+        # rectangle_image_1 = Rectangle(
+        #     xy=(bounds_1[0][2], bounds_1[0][1]),
+        #     width=bounds_1[1][2],
+        #     height=bounds_1[1][1],
+        #     linewidth=1,
+        #     edgecolor="#FF2D00",
+        #     facecolor="none",
+        #     linestyle=":",
+        # )
 
-        # Rectangles to divide images
-        rectangle_image_1 = Rectangle(
-            xy=(bounds_1[0][2], bounds_1[0][1]),
-            width=bounds_1[1][2],
-            height=bounds_1[1][1],
-            linewidth=1,
-            edgecolor="#FF2D00",
-            facecolor="none",
-            linestyle=":",
-        )
+        # rectangle_image_2 = Rectangle(
+        #     xy=(bounds_2[0][2], bounds_2[0][1]),
+        #     width=bounds_1[1][2],
+        #     height=bounds_1[1][1],
+        #     linewidth=1,
+        #     edgecolor="#13FF00",
+        #     facecolor="none",
+        #     linestyle="--",
+        # )
 
-        rectangle_image_2 = Rectangle(
-            xy=(bounds_2[0][2], bounds_2[0][1]),
-            width=bounds_1[1][2],
-            height=bounds_1[1][1],
-            linewidth=1,
-            edgecolor="#13FF00",
-            facecolor="none",
-            linestyle="--",
-        )
+        # fig, ax = plt.subplots(nrows=1, ncols=1)
+        # fig.suptitle(f"Metric: {metric_name}", fontsize=16)
 
-        fig, ax = plt.subplots(nrows=1, ncols=1)
-        fig.suptitle(f"Metric: {metric_name}", fontsize=16)
+        # tracker = SliceTracker(
+        #     fig_axes=ax,
+        #     image_1_data=adjusted_img_1,
+        #     image_2_data=adjusted_img_2,
+        #     points=points_img_1,
+        #     selected_ponts=points_img_2,
+        #     # rectangles=[rectangle_image_1, rectangle_image_2]
+        # )
 
-        tracker = SliceTracker(
-            fig_axes=ax,
-            image_1_data=adjusted_img_1,
-            image_2_data=adjusted_img_2,
-            points=points_img_1,
-            selected_ponts=points_img_2,
-            # rectangles=[rectangle_image_1, rectangle_image_2]
-        )
-
-        ax.add_patch(rectangle_image_1)
-        ax.add_patch(rectangle_image_2)
-        fig.canvas.mpl_connect("scroll_event", tracker.on_scroll)
-        fig.tight_layout()
-        plt.show()
+        # ax.add_patch(rectangle_image_1)
+        # ax.add_patch(rectangle_image_2)
+        # fig.canvas.mpl_connect("scroll_event", tracker.on_scroll)
+        # fig.tight_layout()
+        # plt.show()
 
 
 def plot_matches(

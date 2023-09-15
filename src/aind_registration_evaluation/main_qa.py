@@ -40,10 +40,11 @@ LOGGER.setLevel(logging.INFO)
 def generate_feature_decriptors(
     img: ArrayLike,
     n_keypoints: int,
+    filter_size: int,
     pad_width: int,
     mode: Optional[str] = "energy",
-    gss_sigma: Optional[int] = 8,
-):
+    gss_sigma: Optional[int] = 9,
+) -> dict:
     """
     Generates feature decriptors for 2D/3D
     images.
@@ -52,6 +53,11 @@ def generate_feature_decriptors(
     ----------
     img: ArrayLike
         Array with image data
+
+    filter_size: int
+        Region where to find peaks. It is
+        defined as 2 * filter_size + 1 per
+        axis.
 
     n_keypoints: int
         Number of keypoints to sample.
@@ -97,19 +103,20 @@ def generate_feature_decriptors(
     if mode not in mode_options:
         raise NotImplementedError(f"We only have 2 options: {mode_options}")
 
-    if mode == "energy":
-        img_keypoints, img_response = kd_fft_energy_keypoints(
-            image=img,
-            pad_width=pad_width,
-            n_keypoints=n_keypoints,
-        )
-    else:
-        img_keypoints, img_response = kd_fft_keypoints(
-            image=img,
-            pad_width=pad_width,
-            n_keypoints=n_keypoints,
-        )
+    keypoints_fnc = None
 
+    if mode == "energy":
+        keypoints_fnc = kd_fft_energy_keypoints
+
+    else:
+        keypoints_fnc = kd_fft_keypoints
+
+    img_keypoints, img_response = keypoints_fnc(
+        image=img,
+        filter_size=filter_size,
+        pad_width=pad_width,
+        n_keypoints=n_keypoints,
+    )
     # Getting image derivatives
     derivatives = derivate_image_axis(
         # Smoothing before
@@ -153,12 +160,6 @@ def generate_feature_decriptors(
     for key_feat in img_keypoints_features:
         keypoints.append(key_feat["keypoint"])
         features.append(key_feat["feature_vector"])
-
-    # import matplotlib.pyplot as plt
-    # plt.imshow(img_response[10, ...])
-    # plt.show()
-
-    print("keypoint - features: ", len(keypoints), len(features))
 
     return {
         "keypoints": np.array(keypoints),
@@ -331,6 +332,9 @@ class EvalStitching(ArgSchemaParser):
         self,
         n_keypoints: int,
         pad_width: int,
+        filter_size: int,
+        gss_sigma: int,
+        mode: Optional[str] = "energy",
         overlap_ratio: Optional[float] = 0.10,
         orientation: Optional[str] = "x",
     ) -> List[np.ndarray]:
@@ -342,6 +346,17 @@ class EvalStitching(ArgSchemaParser):
 
         Parameters
         -----------
+
+        mode: Optional[str]
+            Image filtering approach. We have two
+            options, one is energy with generates
+            the image energy using a Laplacian of
+            Gaussian-based approach while the second
+            uses maximum filtering to get maximas and
+            minimas.
+
+            Default: "energy"
+
         overlap_ratio: Optional[float]
             Overlap between images.
             Default: 0.1 -> 10%
@@ -415,17 +430,26 @@ class EvalStitching(ArgSchemaParser):
         img_1_dict = generate_feature_decriptors(
             image_1_data[slices_1],
             n_keypoints=n_keypoints,
+            filter_size=filter_size,
             pad_width=pad_width,
+            gss_sigma=gss_sigma,
+            mode=mode,
         )
         LOGGER.info("Getting keypoints and feature decriptors for image 2.")
         img_2_dict = generate_feature_decriptors(
             image_2_data[slices_2],
             n_keypoints=n_keypoints,
+            filter_size=filter_size,
             pad_width=pad_width,
+            gss_sigma=gss_sigma,
+            mode=mode,
         )
 
-        left_image_keypoints = img_1_dict["keypoints"]
-        right_image_keypoints = img_2_dict["keypoints"]
+        LOGGER.info(f"N points for image 1: {len(img_1_dict['keypoints'])}")
+        LOGGER.info(f"N points for image 2: {len(img_2_dict['keypoints'])}")
+
+        left_image_keypoints = img_1_dict["keypoints"].copy()
+        right_image_keypoints = img_2_dict["keypoints"].copy()
 
         feature_vector_img_1 = (
             img_1_dict["features"],
@@ -443,6 +467,10 @@ class EvalStitching(ArgSchemaParser):
 
         point_matches_pruned = get_pairs_from_distances(
             distances=distances, delete_points=True, metric_threshold=0.1
+        )
+
+        LOGGER.info(
+            f"N points after 1-1 matching: {len(point_matches_pruned.keys())}"
         )
 
         if not len(point_matches_pruned):
@@ -496,7 +524,7 @@ class EvalStitching(ArgSchemaParser):
             point_distances, central_type="mean", outlier_threshold=1
         )
 
-        threshold = 5
+        threshold = 20
         point_distances_median_idx = np.where(
             (point_distances >= median - threshold)
             & (point_distances <= median + threshold)
@@ -511,24 +539,55 @@ class EvalStitching(ArgSchemaParser):
         LOGGER.info(f"[!] Mean euclidean distance in {unit}: {mean}")
 
         if self.args["visualize"]:
+            bounds = [bounds_1, bounds_2]
+
+            left_pts_median = picked_left_points[point_distances_median_idx]
+            right_pts_median = picked_right_points[point_distances_median_idx]
+
+            left_pts_mean = picked_left_points[point_distances_mean_idx]
+            right_pts_mean = picked_right_points[point_distances_mean_idx]
+
+            vis_transform = transform
+
+            if image_1_data.ndim == 3:
+                image_1_data = np.max(image_1_data, axis=0)
+                image_2_data = np.max(image_2_data, axis=0)
+                bounds = [
+                    [bnd[1:] for bnd in bounds_1],
+                    [bnd[1:] for bnd in bounds_2],
+                ]
+
+                left_pts_median = left_pts_median[:, 1:]
+                right_pts_median = right_pts_median[
+                    :, 1:
+                ]  # [rgt_pt[1:] for rgt_pt in right_pts_median]
+
+                left_pts_mean = left_pts_mean[
+                    :, 1:
+                ]  # [lft_pt[1:] for lft_pt in left_pts_mean]
+                right_pts_mean = right_pts_mean[
+                    :, 1:
+                ]  # [rgt_pt[1:] for rgt_pt in right_pts_mean]
+                vis_transform = vis_transform[1:, 1:]
+
             util.visualize_misalignment_images(
                 image_1_data,
                 image_2_data,
-                [bounds_1, bounds_2],
-                picked_left_points[point_distances_median_idx],
-                picked_right_points[point_distances_median_idx],
-                transform,
-                f"Misalignment metric - Error {median}",
+                bounds,
+                left_pts_median,
+                right_pts_median,
+                vis_transform,
+                f"Misalignment metric - Error median {median}",
             )
 
             util.visualize_misalignment_images(
                 image_1_data,
                 image_2_data,
-                [bounds_1, bounds_2],
-                picked_left_points[point_distances_mean_idx],
-                picked_right_points[point_distances_mean_idx],
-                transform,
-                f"Misalignment metric - Error {mean}",
+                bounds,
+                left_pts_mean,
+                right_pts_mean,
+                vis_transform,
+                f"Misalignment metric - Error mean {mean}",
             )
 
         return mean, median
