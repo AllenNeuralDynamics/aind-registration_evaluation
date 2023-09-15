@@ -77,10 +77,10 @@ The keypoint similarity alignment metric is a metric that is currently being dev
 
 These are some metric examples:
 - Image stitching alignment aberration
-![multichannel_misalign_2](https://github.com/AllenNeuralDynamics/aind-registration_evaluation/blob/main/images/multichannel_example_2.png?raw=true)
+![multichannel_misalign_1](https://github.com/AllenNeuralDynamics/aind-registration_evaluation/blob/main/images/keypoint_metric_examples/multichannel_example_2.png?raw=true)
 
 - Improved image stitching alignment:
-![multichannel_misalign_2](https://github.com/AllenNeuralDynamics/aind-registration_evaluation/blob/main/images/multichannel_example.png?raw=true)
+![multichannel_misalign_2](https://github.com/AllenNeuralDynamics/aind-registration_evaluation/blob/main/images/keypoint_metric_examples/multichannel_example.png?raw=true)
 
 ## Note
 > If you want to visualize points in the images, you could activate the visualize flag the package accepts. However, make sure these images are able to fix in memory.
