@@ -3,7 +3,7 @@ Sampling utility functions
 """
 
 import functools
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 from natsort import natsorted
@@ -260,11 +260,11 @@ def prune_points_to_fit_window(
 
 
 def kd_butterworth_filter(
-    shape,
-    factor,
-    order,
-    high_pass,
-    real,
+    shape: Tuple[int],
+    factor: float,
+    order: float,
+    high_pass: bool,
+    real: bool,
     dtype=np.float64,
     squared_butterworth=True,
 ):
@@ -315,7 +315,23 @@ def kd_butterworth_filter(
     return wfilt
 
 
-def get_inversed_fft(fft_image):
+def get_inversed_fft(fft_image: ArrayLike):
+    """
+    Converts an image that is in frequency
+    space (FFTd) to the spatial domain.
+
+    Parameters
+    -----------
+    fft_image: ArrayLike
+        Image in the frequency domain
+        that was computed using a Fast-Fourier
+        Transform.
+
+    Returns
+    -----------
+    ArrayLike:
+        Image in the spatial domain.
+    """
     is_real = np.isrealobj(fft_image)
 
     if is_real:
@@ -324,11 +340,37 @@ def get_inversed_fft(fft_image):
     return np.fft.ifftn(fft_image).real, is_real
 
 
-def get_fft(image):
+def get_fft(image: ArrayLike):
+    """
+    Computes the N-dimensional Discrete
+    FFT in an image array.
+
+    Returns
+    ---------
+    ArrayLike:
+        FFTd image
+    """
     return np.fft.fftn(image)
 
 
-def kd_pad_fft_buterworth(image, pad_width=0):
+def kd_pad_fft_buterworth(image: ArrayLike, pad_width: Optional[int] = 0):
+    """
+    Computes the buterworth filter in the
+    FFTd image.
+
+    Parameters
+    -----------
+    image: ArrayLike
+        N-Dimensional image data
+
+    pad_width: Optional[int]
+        Padding for the image
+
+    Returns
+    -----------
+    Filtered image in the spatial
+    domain
+    """
     if pad_width > 0:
         image = np.pad(array=image, mode="constant", pad_width=pad_width)
 

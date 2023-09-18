@@ -480,18 +480,38 @@ class EvalStitching(ArgSchemaParser):
         # Tomorrow map points to the same
         # coordinate system
         # Working only with translation at the moment
-        offset_ty = transform[0, -1]
-        offset_tx = transform[1, -1]
 
-        # Moving image keypoints back to intersection area
-        if orientation == "y":
-            left_image_keypoints[:, 0] += offset_img_1
+        if image_1_data.ndim == 2:
+            offset_ty = transform[0, -1]
+            offset_tx = transform[1, -1]
+
+            # Moving image keypoints back to intersection area
+            if orientation == "y":
+                left_image_keypoints[:, 0] += offset_img_1
+            else:
+                # x
+                left_image_keypoints[:, 1] += offset_img_1
+
+            right_image_keypoints[:, 0] += offset_ty
+            right_image_keypoints[:, 1] += offset_tx
+
         else:
-            # x
-            left_image_keypoints[:, 1] += offset_img_1
+            offset_tz = transform[0, -1]
+            offset_ty = transform[1, -1]
+            offset_tx = transform[2, -1]
 
-        right_image_keypoints[:, 0] += offset_ty
-        right_image_keypoints[:, 1] += offset_tx
+            # Moving image keypoints back to intersection area
+            if orientation == "y":
+                left_image_keypoints[:, -2] += offset_img_1
+            elif orientation == "x":
+                left_image_keypoints[:, -1] += offset_img_1
+            else:
+                # z
+                left_image_keypoints[:, -3] += offset_img_1
+
+            right_image_keypoints[:, -3] += offset_tz
+            right_image_keypoints[:, -2] += offset_ty
+            right_image_keypoints[:, -1] += offset_tx
 
         # distance between points
         point_distances = np.array([])
@@ -549,26 +569,26 @@ class EvalStitching(ArgSchemaParser):
 
             vis_transform = transform
 
-            if image_1_data.ndim == 3:
-                image_1_data = np.max(image_1_data, axis=0)
-                image_2_data = np.max(image_2_data, axis=0)
-                bounds = [
-                    [bnd[1:] for bnd in bounds_1],
-                    [bnd[1:] for bnd in bounds_2],
-                ]
+            # if image_1_data.ndim == 3:
+            #     image_1_data = np.max(image_1_data, axis=0)
+            #     image_2_data = np.max(image_2_data, axis=0)
+            #     bounds = [
+            #         [bnd[1:] for bnd in bounds_1],
+            #         [bnd[1:] for bnd in bounds_2],
+            #     ]
 
-                left_pts_median = left_pts_median[:, 1:]
-                right_pts_median = right_pts_median[
-                    :, 1:
-                ]  # [rgt_pt[1:] for rgt_pt in right_pts_median]
+            #     left_pts_median = left_pts_median[:, 1:]
+            #     right_pts_median = right_pts_median[
+            #         :, 1:
+            #     ]  # [rgt_pt[1:] for rgt_pt in right_pts_median]
 
-                left_pts_mean = left_pts_mean[
-                    :, 1:
-                ]  # [lft_pt[1:] for lft_pt in left_pts_mean]
-                right_pts_mean = right_pts_mean[
-                    :, 1:
-                ]  # [rgt_pt[1:] for rgt_pt in right_pts_mean]
-                vis_transform = vis_transform[1:, 1:]
+            #     left_pts_mean = left_pts_mean[
+            #         :, 1:
+            #     ]  # [lft_pt[1:] for lft_pt in left_pts_mean]
+            #     right_pts_mean = right_pts_mean[
+            #         :, 1:
+            #     ]  # [rgt_pt[1:] for rgt_pt in right_pts_mean]
+            #     vis_transform = vis_transform[1:, 1:]
 
             util.visualize_misalignment_images(
                 image_1_data,

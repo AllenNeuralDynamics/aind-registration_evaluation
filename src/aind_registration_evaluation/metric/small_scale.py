@@ -853,6 +853,12 @@ def compute_feature_space_distances(
         feat_distances = np.append(feat_distances, feat_dif)
         loc_distances = np.append(loc_distances, loc_dif)
 
+    if feat_distances.size == 0:
+        raise ValueError("Not able to get feature distances")
+
+    if loc_distances.size == 0:
+        raise ValueError("Not able to get feature distances")
+
     # Normalization
     feat_distances = feat_distances / feat_distances[feat_distances.argmax()]
     loc_distances = loc_distances / loc_distances[loc_distances.argmax()]

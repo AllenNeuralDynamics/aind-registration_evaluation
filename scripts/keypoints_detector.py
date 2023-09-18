@@ -698,6 +698,40 @@ def test_fft_energy_keypoints(img_1, img_2, pad_width, filter_size, sigma):
     plt.show()
 
 
+def test_fft_energy_keypoints_3d(img_1, img_2, pad_width, filter_size, sigma):
+    n_keypoints = 200
+    img_1_dict = generate_key_features_per_img2d(
+        img_1,
+        n_keypoints=n_keypoints,
+        pad_width=pad_width,
+        filter_size=filter_size,
+        sigma=sigma,
+    )
+    img_2_dict = generate_key_features_per_img2d(
+        img_2,
+        n_keypoints=n_keypoints,
+        pad_width=pad_width,
+        filter_size=filter_size,
+        sigma=sigma,
+    )
+
+    feature_vector_img_1 = (img_1_dict["features"], img_1_dict["keypoints"])
+    feature_vector_img_2 = (img_2_dict["features"], img_2_dict["keypoints"])
+
+    distances = compute_feature_space_distances(
+        feature_vector_img_1, feature_vector_img_2, feature_weight=0.2
+    )
+
+    point_matches_pruned = get_pairs_from_distances(
+        distances=distances.copy(), delete_points=True, metric_threshold=0.1
+    )
+
+    print("N points after prunning: ", len(point_matches_pruned.keys()))
+    print(
+        f"N keypoints img_1: {img_1_dict['keypoints'].shape} img_2: {img_2_dict['keypoints'].shape}"
+    )
+
+
 def test_img_3d_orientations(img_3d):
     pad_width_3d = np.min(img_3d.shape) // 4
     # Getting keypoints
@@ -799,7 +833,7 @@ def main():
 
     img_1 = zarr.open(img_1_path, "r")[0, 0, 0, :, 1800:]
     img_2 = zarr.open(img_2_path, "r")[0, 0, 0, :, :200]
-    img_3d = tif.imread(img_3D_path)[120:184, 200:456, 200:456]
+    img_3d = tif.imread(img_3D_path)  # [120:184, 200:456, 200:456]
 
     # New SmartSPIM test, interchannel
     # ch_445_sample_path = (
@@ -822,12 +856,15 @@ def main():
 
     # test_img_2d_orientations(img_3d[10, :, :])# (img_1)#
     # test_img_3d_orientations(img_3d)
-    test_fft_energy_keypoints(
-        img_1,  # ch_445_data,
-        img_2,  # ch_561_data,
-        pad_width=30,
-        filter_size=5,
-        sigma=9,
+    # test_fft_energy_keypoints(
+    #     img_1,  # ch_445_data,
+    #     img_2,  # ch_561_data,
+    #     pad_width=30,
+    #     filter_size=5,
+    #     sigma=9,
+    # )
+    test_fft_energy_keypoints_3d(
+        img_3d, img_3d, pad_width=30, filter_size=5, sigma=9
     )
     # test_fft_max_keypoints(img_1, img_2)
 

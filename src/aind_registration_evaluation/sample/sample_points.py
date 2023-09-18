@@ -216,13 +216,61 @@ def sample_points_in_overlap(
 
 
 def kd_max_min_local_points(
-    image,
-    filter_size,
-    pad_width=0,
-    max_relative_threshold=0.2,
-    min_relative_threshold=0.2,
-    n_keypoints=100,
+    image: ArrayLike,
+    filter_size: int,
+    pad_width: Optional[int] = 0,
+    max_relative_threshold: Optional[float] = 0.2,
+    min_relative_threshold: Optional[float] = 0.2,
+    n_keypoints: Optional[int] = 100,
 ):
+    """
+    Computes the local maximas and minimas
+    in an image using the filter size as
+    minimum distance between patches of data.
+
+    Paramters
+    ----------
+    image: ArrayLike
+        N-Dimensional image data
+
+    filter_size: int
+        Size that is taken at every element
+        of the data to compute the maximum
+        filtering. This integer is applied
+        over each axis.
+
+    pad_width: Optional[int]
+        Padding width for the useful for
+        the non-linear filtering.
+        Default: 0
+
+    max_relative_threshold: Optional[float]
+        Minimum relative threshold to get the
+        intensity of peaks for the local maxima
+        values in the data. This is calculated
+        as max(image) * max_relative_threshold.
+        Default: 0.2
+
+    min_relative_threshold: Optional[float]
+        Minimum relative threshold to get the
+        intensity of peaks for the local minima
+        values in the data. This is calculated
+        as max(image) * max_relative_threshold.
+        Default: 0.2
+
+    n_keypoints: Optional[int]
+        Number of keypoints to sample. This
+        only applied if we get too many
+        keypoints from the current parameters.
+        Default: 100
+
+    Returns
+    ----------
+    Tuple[np.array, np.array, np.array]
+        Tuple with the local maxima coordinates,
+        local minima coordinates and filtered
+        image.
+    """
     image_max_filter = maximum_filter(image, size=filter_size)
 
     if pad_width > 0:
@@ -256,13 +304,60 @@ def kd_max_min_local_points(
 
 
 def kd_max_energy_points(
-    image: np.array,
+    image: ArrayLike,
     sigma: int,
     filter_size: int,
     pad_width: Optional[int] = 0,
     max_relative_threshold: Optional[float] = 0.2,
     n_keypoints: Optional[int] = 100,
 ):
+    """
+    Gets the points where there are
+    local maximas patching the data
+    with a filter_size*2 from the
+    energy image computed with
+    a Laplacian of Gaussian.
+
+    Paramters
+    ----------
+    image: ArrayLike
+        N-Dimensional image data
+
+    sigma: int
+        Sigma used in the gaussian.
+        Greater the gaussian, the more
+        the smoothing.
+
+    filter_size: int
+        Size that is taken at every element
+        of the data to compute the maximum
+        filtering. This integer is applied
+        over each axis.
+
+    pad_width: Optional[int]
+        Padding width for the useful for
+        the non-linear filtering.
+        Default: 0
+
+    max_relative_threshold: Optional[float]
+        Minimum relative threshold to get the
+        intensity of peaks for the local maxima
+        values in the data. This is calculated
+        as max(image) * max_relative_threshold.
+        Default: 0.2
+
+    n_keypoints: Optional[int]
+        Number of keypoints to sample. This
+        only applied if we get too many
+        keypoints from the current parameters.
+        Default: 100
+
+    Returns
+    ----------
+    Tuple[np.array, np.array]
+        Tuple with the local maxima coordinates
+        and filtered image.
+    """
     image_gaussian_laplaced = gaussian_laplace(
         input=image, sigma=sigma, mode="reflect"
     )
@@ -287,14 +382,66 @@ def kd_max_energy_points(
 
 
 def kd_fft_keypoints(
-    image,
+    image: ArrayLike,
     filter_size: int,
-    pad_width=0,
-    max_relative_threshold=0.2,
-    min_relative_threshold=0.05,
-    overlap_threshold=0.3,
-    n_keypoints=100,
+    pad_width: Optional[int] = 0,
+    max_relative_threshold: Optional[float] = 0.2,
+    min_relative_threshold: Optional[float] = 0.05,
+    overlap_threshold: Optional[float] = 0.3,
+    n_keypoints: Optional[int] = 100,
 ):
+    """
+    Gets keypoints using the following
+    approach:
+    1. Computes the FFT and then buterworth filter
+    in the signal.
+    2. Gets local maximas and minimas from the image.
+    3. Removes points in the same area using the
+    non-maxima suppression algorithm.
+
+    Parameters
+    -----------
+    image: ArrayLike
+        N-Dimensional image data
+
+    filter_size: int
+        Size that is taken at every element
+        of the data to compute the maximum
+        filtering. This integer is applied
+        over each axis.
+
+    pad_width: Optional[int]
+        Padding width for the useful for
+        the non-linear filtering.
+        Default: 0
+
+    max_relative_threshold: Optional[float]
+        Minimum relative threshold to get the
+        intensity of peaks for the local maxima
+        values in the data. This is calculated
+        as max(image) * max_relative_threshold.
+        Default: 0.2
+
+    overlap_threshold: Optional[float]
+        Overlap threshold betweend the
+        bounding boxes computed around
+        each corner using the filter_size
+        value.
+        Default: 0.3
+
+    n_keypoints: Optional[int]
+        Number of keypoints to sample. This
+        only applied if we get too many
+        keypoints from the current parameters.
+        Default: 100
+
+    Returns
+    ---------
+    Tuple[np.array, np.array]
+        Tuple with the local minimas and
+        maximas in the first position and
+        the filtered image in the second.
+    """
     inversed_fft_image = kd_pad_fft_buterworth(image, pad_width=pad_width)
 
     max_points, min_points, response_img = kd_max_min_local_points(

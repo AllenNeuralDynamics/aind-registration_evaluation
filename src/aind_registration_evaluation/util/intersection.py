@@ -267,7 +267,45 @@ def kd_non_max_suppression(
     return np.array(pruned_indices, dtype=int)
 
 
-def generate_corner(val, window_size, mode, img_shape, axis):
+def generate_corner(
+    val: int, window_size: int, mode: str, img_shape: Tuple[int], axis: int
+):
+    """
+    Helper function to generate the
+    coordinates of a quadrant of a
+    square/cube around the sampled
+    point.
+
+    Parameters
+    ----------
+    val: int
+        Cartesian coordinate in one
+        of the axis, it could be the
+        Z, Y or X value.
+
+    window_size: int
+        Represents the window size
+        of the quadrant.
+
+    mode: str
+        Mode in which we want to generate
+        the area. Possible options are:
+        "summation" or "subtraction".
+
+    img_shape: Tuple[int]
+        Image shape of the data
+
+    axis: int
+        Axis position
+
+    Returns
+    -----------
+    int
+        Returns the possible value
+        of the new coordinate limits
+        to get the square/cube area.
+    """
+
     possible_val = val + window_size
 
     if mode == "summation":
@@ -288,6 +326,33 @@ def generate_corner(val, window_size, mode, img_shape, axis):
 def kd_compute_bboxs_cubes(
     points: List[int], window_size: int, img_shape: Tuple[int]
 ):
+    """
+    Generates bounding boxes for each
+    of the provided points.
+
+    Paramters
+    ----------
+    points: List[int]
+        List of points in the 2D or 3D space.
+        Make sure the points follow the ZYX or
+        YX order.
+
+    window_size: int
+        Window size to get data around the point.
+        This window size is an integer that is
+        applied over each axis.
+
+    img_shape: Tuple[int]
+        Image shape where the points were sampled
+
+    Returns
+    --------
+    np.array:
+        Numpy array with the bounding boxes per
+        sampled point. These bounding boxes were
+        generated around each point using the
+        provided window size.
+    """
     n_dims = len(img_shape)
     img_geometries = []
 
