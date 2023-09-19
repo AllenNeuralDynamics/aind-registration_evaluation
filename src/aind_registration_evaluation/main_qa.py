@@ -474,7 +474,7 @@ class EvalStitching(ArgSchemaParser):
         )
 
         if not len(point_matches_pruned):
-            print("No keypoints found!")
+            LOGGER.error("No keypoints found!")
             return np.nan, np.nan
 
         # Tomorrow map points to the same

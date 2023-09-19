@@ -306,14 +306,14 @@ def generate_corner(
         to get the square/cube area.
     """
 
-    possible_val = val + window_size
+    possible_val = val + window_size + 1
 
     if mode == "summation":
         if possible_val > img_shape[axis] - 1:
             possible_val = img_shape[axis] - 1
 
     elif mode == "subtraction":
-        possible_val = val - window_size
+        possible_val = val - window_size - 1
         if possible_val < 0:
             possible_val = 0
 

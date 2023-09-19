@@ -654,7 +654,10 @@ def kd_compute_keypoints_hog(
     slices = []
     for axis_val in keypoint:
         slices.append(
-            slice(axis_val - window_size // 2, axis_val + window_size // 2)
+            slice(
+                (axis_val - window_size + 1) // 2,
+                (axis_val + window_size + 1) // 2,
+            )
         )
     slices = tuple(slices)
 
