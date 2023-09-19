@@ -73,7 +73,7 @@ The available image formats at the moment are:
 - Tiff
 
 ## Keypoint Similarity Alignment Metric
-The keypoint similarity alignment metric is a metric that is currently being developed at the Allen Institute for Neural Dynamics as part of the image stitching evaluation protocol for large-scale image datasets. Please, refer to `/scripts/run_misalignment.py` example.
+The keypoint similarity alignment metric is a metric that is currently being developed at the Allen Institute for Neural Dynamics as part of the image stitching evaluation protocol for large-scale image datasets. Please, refer to `/scripts/run_misalignment.py` example. The current options are `"energy"` and `"maxima"` methods. Please, read the documentation to learn more about these options.
 
 These are some metric examples:
 - Image stitching alignment aberration
