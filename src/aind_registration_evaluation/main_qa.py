@@ -109,7 +109,7 @@ def generate_feature_decriptors(
         keypoints_fnc = kd_fft_energy_keypoints
 
     else:
-        keypoints_fnc = kd_fft_keypoints
+        keypoints_fnc = kd_fft_maxima_keypoints
 
     img_keypoints, img_response = keypoints_fnc(
         image=img,
@@ -120,7 +120,10 @@ def generate_feature_decriptors(
     # Getting image derivatives
     derivatives = derivate_image_axis(
         # Smoothing before
-        image=gaussian_filter(img, sigma=gss_sigma),
+        image=gaussian_filter(
+            np.pad(array=img, pad_width=pad_width, mode="reflect"),
+            sigma=gss_sigma,
+        ),
         axis=list(range(img.ndim)),  # [0, 1, ..., Ndims]
     )
 
@@ -143,17 +146,23 @@ def generate_feature_decriptors(
         ]
 
     # Getting keypoint feature decriptors
-    img_features = np.array([
-        kd_compute_keypoints_hog(
-            image_gradient_magnitude=gradient_magnitude,
-            image_gradient_orientation=gradient_orientations,
-            keypoint=keypoint,
-            n_dims=img.ndim,
-            # window_size=16,
-            # bins=[8],
-        )
-        for keypoint in img_keypoints
-    ])
+    img_features = np.array(
+        [
+            kd_compute_keypoints_hog(
+                image_gradient_magnitude=gradient_magnitude,
+                image_gradient_orientation=gradient_orientations,
+                keypoint=keypoint,
+                n_dims=img.ndim,
+                # window_size=16,
+                # bins=[8],
+            )
+            for keypoint in img_keypoints
+        ]
+    )
+
+    # Features are computed in the image with reflect padding
+    # But points must be returned without padding
+    img_keypoints -= pad_width
 
     return {
         "keypoints": img_keypoints,
