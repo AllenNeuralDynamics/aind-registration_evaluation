@@ -349,6 +349,7 @@ class EvalStitching(ArgSchemaParser):
         overlap_ratio: Optional[float] = 0.10,
         orientation: Optional[str] = "x",
         max_relative_threshold: Optional[float] = 0.2,
+        pt_threshold: Optional[int] = 5
     ) -> List[np.ndarray]:
         """
         Runs misalignment metric for stitching
@@ -569,14 +570,13 @@ class EvalStitching(ArgSchemaParser):
             point_distances, central_type="mean", outlier_threshold=1
         )
 
-        threshold = 20
         point_distances_median_idx = np.where(
-            (point_distances >= median - threshold)
-            & (point_distances <= median + threshold)
+            (point_distances >= median - pt_threshold)
+            & (point_distances <= median + pt_threshold)
         )
         point_distances_mean_idx = np.where(
-            (point_distances >= mean - threshold)
-            & (point_distances <= mean + threshold)
+            (point_distances >= mean - pt_threshold)
+            & (point_distances <= mean + pt_threshold)
         )
 
         unit = "pixels" if image_1_data.ndim == 2 else "voxels"

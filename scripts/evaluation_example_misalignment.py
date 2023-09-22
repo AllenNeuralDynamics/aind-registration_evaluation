@@ -138,15 +138,13 @@ def run_individual():
     BASE_PATH = "/Users/camilo.laiton/Documents/images/"
 
     # default_config, misalignment_parameters = run_3d_example(BASE_PATH)
-    # default_config, misalignment_parameters = run_2d_tile_example(BASE_PATH)
+    default_config, misalignment_parameters = run_2d_tile_example(BASE_PATH)
     # default_config, misalignment_parameters = run_multichannel_example(BASE_PATH)
-    (
-        default_config,
-        misalignment_parameters,
-    ) = run_2d_multichannel_tile_example_png(BASE_PATH)
+    # default_config, misalignment_parameters= run_2d_multichannel_tile_example_png(BASE_PATH)
 
     default_config["visualize"] = True
     misalignment_method = "energy"  # Options = ["energy", "maxima"]
+    pt_threshold = 10
 
     import time
 
@@ -156,6 +154,7 @@ def run_individual():
     mod.run_misalignment(
         **misalignment_parameters,
         mode=misalignment_method,
+        pt_threshold=pt_threshold,
     )
     time_end = time.time()
     print(f"Time: {time_end-time_start}")
@@ -174,7 +173,7 @@ def run_all():
         run_multichannel_example(BASE_PATH),
         run_2d_multichannel_tile_example_png(BASE_PATH),
     ]
-
+    pt_threshold = 10
     for default_config, misalignment_parameters in all_confs:
         for misalignment_method in ["energy", "maxima"]:
             print(f"Run for misalignment method: {misalignment_method}")
@@ -187,6 +186,7 @@ def run_all():
             mod.run_misalignment(
                 **misalignment_parameters,
                 mode=misalignment_method,
+                pt_threshold=pt_threshold,
             )
             time_end = time.time()
             print(f"Time: {time_end-time_start}")
@@ -196,8 +196,8 @@ def main():
     """
     Main function
     """
-    # run_individual()
-    run_all()
+    run_individual()
+    # run_all()
 
 
 if __name__ == "__main__":
