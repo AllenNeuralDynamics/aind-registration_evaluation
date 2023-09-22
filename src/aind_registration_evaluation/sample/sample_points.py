@@ -381,7 +381,7 @@ def kd_max_energy_points(
     return np.array(max_energy_points, dtype=int), image_gaussian_laplaced
 
 
-def kd_fft_keypoints(
+def kd_fft_maxima_keypoints(
     image: ArrayLike,
     filter_size: int,
     pad_width: Optional[int] = 0,
@@ -479,10 +479,13 @@ def kd_fft_keypoints(
     if len(idxs_pruned_min_bboxs):
         pruned_min_points = min_points[idxs_pruned_min_bboxs]
 
-    return (
-        np.concatenate((pruned_max_points, pruned_min_points), axis=0),
-        response_img,
+    # Sending points back to img with padding
+    pruned_points = np.concatenate(
+        (pruned_max_points, pruned_min_points), axis=0
     )
+    pruned_points += pad_width
+
+    return pruned_points, response_img
 
 
 def kd_fft_energy_keypoints(
@@ -527,8 +530,7 @@ def kd_fft_energy_keypoints(
 
     max_relative_threshold: Optional[float]
         Relative threshold for the image signal
-        to avoid sampling in areas where we have
-        no signal.
+        to avoid sampling in undesired areas.
         f = max(image) * max_relative_threshold
         Default: 0.2
 
@@ -582,6 +584,8 @@ def kd_fft_energy_keypoints(
     ):
         pruned_max_points = energy_points[idxs_pruned_energy_bboxs]
 
+    # Sending points back to img with padding
+    pruned_max_points += pad_width
     return pruned_max_points, response_img
 
 
@@ -641,6 +645,8 @@ def kd_compute_keypoints_hog(
 
     Returns
     ----------
+    feature_vector: np.array
+        Feature vector representing the keypoint
     """
 
     if n_dims <= 1 or n_dims > 3:
@@ -655,8 +661,8 @@ def kd_compute_keypoints_hog(
     for axis_val in keypoint:
         slices.append(
             slice(
-                (axis_val - window_size + 1) // 2,
-                (axis_val + window_size + 1) // 2,
+                (axis_val - window_size // 2) - 1,
+                (axis_val + window_size // 2) - 1,
             )
         )
     slices = tuple(slices)
@@ -761,9 +767,17 @@ def kd_compute_keypoints_hog(
     feature_vector = feature_vector / (
         np.sqrt(np.sum(feature_vector**2)) + 1e-8
     )
-
     # Normalizing feat vect
     # feature_vector = feature_vector / np.sqrt(np.sum(np.power(feature_vector, 2)))#/= np.linalg.norm(feature_vector)#
     # feature_vector = np.sqrt(feature_vector)
 
-    return {"keypoint": keypoint, "feature_vector": feature_vector}
+    # The feature vector shape must be the multiplicated bins * (cellsize**2)
+    validation_shape = np.prod(
+        bins[slice(None, n_dims - 1)] + [cell_size**n_dims]
+    )
+
+    assert (
+        feature_vector.shape[0] == validation_shape
+    ), f"Error building feature vector for keypoint {keypoint} - feature shape: {feature_vector.shape[0]} != {validation_shape}"
+
+    return feature_vector

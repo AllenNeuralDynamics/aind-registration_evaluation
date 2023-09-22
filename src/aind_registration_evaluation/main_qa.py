@@ -44,6 +44,7 @@ def generate_feature_decriptors(
     pad_width: int,
     mode: Optional[str] = "energy",
     gss_sigma: Optional[int] = 9,
+    max_relative_threshold: Optional[float] = 0.2,
 ) -> dict:
     """
     Generates feature decriptors for 2D/3D
@@ -81,6 +82,12 @@ def generate_feature_decriptors(
         computing image derivatives.
         Default: 8
 
+    max_relative_threshold: Optional[float]
+        Relative threshold for the image signal
+        to avoid sampling in undesired areas.
+        f = max(image) * max_relative_threshold
+        Default: 0.2
+
     Raises
     ------------
     NotImplementedError:
@@ -109,18 +116,22 @@ def generate_feature_decriptors(
         keypoints_fnc = kd_fft_energy_keypoints
 
     else:
-        keypoints_fnc = kd_fft_keypoints
+        keypoints_fnc = kd_fft_maxima_keypoints
 
     img_keypoints, img_response = keypoints_fnc(
         image=img,
         filter_size=filter_size,
         pad_width=pad_width,
         n_keypoints=n_keypoints,
+        max_relative_threshold=max_relative_threshold,
     )
     # Getting image derivatives
     derivatives = derivate_image_axis(
         # Smoothing before
-        image=gaussian_filter(img, sigma=gss_sigma),
+        image=gaussian_filter(
+            np.pad(array=img, pad_width=pad_width, mode="reflect"),
+            sigma=gss_sigma,
+        ),
         axis=list(range(img.ndim)),  # [0, 1, ..., Ndims]
     )
 
@@ -143,27 +154,27 @@ def generate_feature_decriptors(
         ]
 
     # Getting keypoint feature decriptors
-    img_keypoints_features = [
-        kd_compute_keypoints_hog(
-            image_gradient_magnitude=gradient_magnitude,
-            image_gradient_orientation=gradient_orientations,
-            keypoint=keypoint,
-            n_dims=img.ndim,
-            # window_size=16,
-            # bins=[8],
-        )
-        for keypoint in img_keypoints
-    ]
+    img_features = np.array(
+        [
+            kd_compute_keypoints_hog(
+                image_gradient_magnitude=gradient_magnitude,
+                image_gradient_orientation=gradient_orientations,
+                keypoint=keypoint,
+                n_dims=img.ndim,
+                # window_size=16,
+                # bins=[8],
+            )
+            for keypoint in img_keypoints
+        ]
+    )
 
-    keypoints = []
-    features = []
-    for key_feat in img_keypoints_features:
-        keypoints.append(key_feat["keypoint"])
-        features.append(key_feat["feature_vector"])
+    # Features are computed in the image with reflect padding
+    # But points must be returned without padding
+    img_keypoints -= pad_width
 
     return {
-        "keypoints": np.array(keypoints),
-        "features": np.array(features),
+        "keypoints": img_keypoints,
+        "features": img_features,
         "response_img": img_response,
     }
 
@@ -337,6 +348,7 @@ class EvalStitching(ArgSchemaParser):
         mode: Optional[str] = "energy",
         overlap_ratio: Optional[float] = 0.10,
         orientation: Optional[str] = "x",
+        max_relative_threshold: Optional[float] = 0.2,
     ) -> List[np.ndarray]:
         """
         Runs misalignment metric for stitching
@@ -364,6 +376,17 @@ class EvalStitching(ArgSchemaParser):
         orientation: Optional[str]
             Overlap orientation
             ["x", "y", "z"]
+
+        gss_sigma: Optional[int]
+        Sigma in the gaussian filtering before
+        computing image derivatives.
+        Default: 8
+
+        max_relative_threshold: Optional[float]
+            Relative threshold for the image signal
+            to avoid sampling in undesired areas.
+            f = max(image) * max_relative_threshold
+            Default: 0.2
 
         Raises
         -----------
@@ -434,6 +457,7 @@ class EvalStitching(ArgSchemaParser):
             pad_width=pad_width,
             gss_sigma=gss_sigma,
             mode=mode,
+            max_relative_threshold=max_relative_threshold,
         )
         LOGGER.info("Getting keypoints and feature decriptors for image 2.")
         img_2_dict = generate_feature_decriptors(
@@ -443,6 +467,7 @@ class EvalStitching(ArgSchemaParser):
             pad_width=pad_width,
             gss_sigma=gss_sigma,
             mode=mode,
+            max_relative_threshold=max_relative_threshold,
         )
 
         LOGGER.info(f"N points for image 1: {len(img_1_dict['keypoints'])}")
