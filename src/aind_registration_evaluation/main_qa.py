@@ -44,6 +44,7 @@ def generate_feature_decriptors(
     pad_width: int,
     mode: Optional[str] = "energy",
     gss_sigma: Optional[int] = 9,
+    max_relative_threshold: Optional[float] = 0.2,
 ) -> dict:
     """
     Generates feature decriptors for 2D/3D
@@ -81,6 +82,12 @@ def generate_feature_decriptors(
         computing image derivatives.
         Default: 8
 
+    max_relative_threshold: Optional[float]
+        Relative threshold for the image signal
+        to avoid sampling in undesired areas.
+        f = max(image) * max_relative_threshold
+        Default: 0.2
+
     Raises
     ------------
     NotImplementedError:
@@ -116,6 +123,7 @@ def generate_feature_decriptors(
         filter_size=filter_size,
         pad_width=pad_width,
         n_keypoints=n_keypoints,
+        max_relative_threshold=max_relative_threshold,
     )
     # Getting image derivatives
     derivatives = derivate_image_axis(
@@ -340,6 +348,7 @@ class EvalStitching(ArgSchemaParser):
         mode: Optional[str] = "energy",
         overlap_ratio: Optional[float] = 0.10,
         orientation: Optional[str] = "x",
+        max_relative_threshold: Optional[float] = 0.2,
     ) -> List[np.ndarray]:
         """
         Runs misalignment metric for stitching
@@ -367,6 +376,17 @@ class EvalStitching(ArgSchemaParser):
         orientation: Optional[str]
             Overlap orientation
             ["x", "y", "z"]
+
+        gss_sigma: Optional[int]
+        Sigma in the gaussian filtering before
+        computing image derivatives.
+        Default: 8
+
+        max_relative_threshold: Optional[float]
+            Relative threshold for the image signal
+            to avoid sampling in undesired areas.
+            f = max(image) * max_relative_threshold
+            Default: 0.2
 
         Raises
         -----------
@@ -437,6 +457,7 @@ class EvalStitching(ArgSchemaParser):
             pad_width=pad_width,
             gss_sigma=gss_sigma,
             mode=mode,
+            max_relative_threshold=max_relative_threshold,
         )
         LOGGER.info("Getting keypoints and feature decriptors for image 2.")
         img_2_dict = generate_feature_decriptors(
@@ -446,6 +467,7 @@ class EvalStitching(ArgSchemaParser):
             pad_width=pad_width,
             gss_sigma=gss_sigma,
             mode=mode,
+            max_relative_threshold=max_relative_threshold,
         )
 
         LOGGER.info(f"N points for image 1: {len(img_1_dict['keypoints'])}")

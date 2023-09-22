@@ -530,8 +530,7 @@ def kd_fft_energy_keypoints(
 
     max_relative_threshold: Optional[float]
         Relative threshold for the image signal
-        to avoid sampling in areas where we have
-        no signal.
+        to avoid sampling in undesired areas.
         f = max(image) * max_relative_threshold
         Default: 0.2
 
@@ -774,11 +773,11 @@ def kd_compute_keypoints_hog(
 
     # The feature vector shape must be the multiplicated bins * (cellsize**2)
     validation_shape = np.prod(
-        bins[slice(None, n_dims - 1)] + [cell_size**2]
+        bins[slice(None, n_dims - 1)] + [cell_size**n_dims]
     )
-    # print(feature_vector.shape, validation_shape, " bins: ", bins[slice(None, n_dims - 1)], cell_size, cell_size//2)
+
     assert (
         feature_vector.shape[0] == validation_shape
-    ), f"Error building one feature vector: {keypoint} - feature shape: {feature_vector.shape[0]} != {validation_shape}"
+    ), f"Error building feature vector for keypoint {keypoint} - feature shape: {feature_vector.shape[0]} != {validation_shape}"
 
     return feature_vector
