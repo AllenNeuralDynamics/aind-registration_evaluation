@@ -143,7 +143,7 @@ def generate_feature_decriptors(
         ]
 
     # Getting keypoint feature decriptors
-    img_keypoints_features = [
+    img_features = np.array([
         kd_compute_keypoints_hog(
             image_gradient_magnitude=gradient_magnitude,
             image_gradient_orientation=gradient_orientations,
@@ -153,17 +153,11 @@ def generate_feature_decriptors(
             # bins=[8],
         )
         for keypoint in img_keypoints
-    ]
-
-    keypoints = []
-    features = []
-    for key_feat in img_keypoints_features:
-        keypoints.append(key_feat["keypoint"])
-        features.append(key_feat["feature_vector"])
+    ])
 
     return {
-        "keypoints": np.array(keypoints),
-        "features": np.array(features),
+        "keypoints": img_keypoints,
+        "features": img_features,
         "response_img": img_response,
     }
 

@@ -641,6 +641,8 @@ def kd_compute_keypoints_hog(
 
     Returns
     ----------
+    feature_vector: np.array
+        Feature vector representing the keypoint
     """
 
     if n_dims <= 1 or n_dims > 3:
@@ -655,8 +657,8 @@ def kd_compute_keypoints_hog(
     for axis_val in keypoint:
         slices.append(
             slice(
-                (axis_val - window_size + 1) // 2,
-                (axis_val + window_size + 1) // 2,
+                (axis_val - window_size // 2) - 1,
+                (axis_val + window_size // 2) - 1,
             )
         )
     slices = tuple(slices)
@@ -761,9 +763,18 @@ def kd_compute_keypoints_hog(
     feature_vector = feature_vector / (
         np.sqrt(np.sum(feature_vector**2)) + 1e-8
     )
-
     # Normalizing feat vect
     # feature_vector = feature_vector / np.sqrt(np.sum(np.power(feature_vector, 2)))#/= np.linalg.norm(feature_vector)#
     # feature_vector = np.sqrt(feature_vector)
 
-    return {"keypoint": keypoint, "feature_vector": feature_vector}
+    # The feature vector shape must be the multiplicated bins * (cellsize**2)
+    validation_shape = np.prod(
+        bins[slice(None, n_dims - 1)] + [cell_size**2]
+    )
+    # print(feature_vector.shape, validation_shape, " bins: ", bins[slice(None, n_dims - 1)], cell_size, cell_size//2)
+    assert (
+        feature_vector.shape[0] == validation_shape
+    ), f"Error building one feature vector: {keypoint} - feature shape: {feature_vector.shape[0]} != {validation_shape}"
+
+
+    return feature_vector
