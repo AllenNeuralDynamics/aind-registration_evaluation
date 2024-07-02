@@ -1,6 +1,7 @@
 """
     Image metric's factory
 """
+
 from typing import List
 
 import dask.array as da

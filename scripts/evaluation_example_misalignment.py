@@ -42,10 +42,12 @@ def run_2d_tile_example(base_path: str):
     default_config = get_default_config()
 
     default_config["image_1"] = (
-        base_path + "Ex_488_Em_525_468770_468770_830620_012820.zarr"
+        base_path
+        + "mip_confocal.tif"  # "Ex_488_Em_525_468770_468770_830620_012820.zarr"
     )
     default_config["image_2"] = (
-        base_path + "Ex_488_Em_525_501170_501170_830620_012820.zarr"
+        base_path
+        + "mip_confocal.tif"  # "Ex_488_Em_525_501170_501170_830620_012820.zarr"
     )
 
     misalignment_parameters = {
@@ -60,7 +62,7 @@ def run_2d_tile_example(base_path: str):
 
     default_config["transform_matrix"] = [
         [1, 0, 0],  # Y -17
-        [0, 1, 1800],  # X 1800
+        [0, 1, 0],  # X 1800
         [0, 0, 1],
     ]
 
@@ -137,7 +139,7 @@ def run_individual():
 
     BASE_PATH = "/Users/camilo.laiton/Documents/images/"
 
-    # default_config, misalignment_parameters = run_3d_example(BASE_PATH)
+    default_config, misalignment_parameters = run_3d_example(BASE_PATH)
     default_config, misalignment_parameters = run_2d_tile_example(BASE_PATH)
     # default_config, misalignment_parameters = run_multichannel_example(BASE_PATH)
     # default_config, misalignment_parameters= run_2d_multichannel_tile_example_png(BASE_PATH)

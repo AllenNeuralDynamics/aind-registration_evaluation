@@ -2,6 +2,7 @@
 Evaluate stitching misalignment
 of large scale data.
 """
+
 import logging
 import os
 from pathlib import Path
@@ -321,6 +322,10 @@ class EvalStitching(ArgSchemaParser):
             dscrd_pts = (
                 points.shape[0] - discarded_points_window - computed_points
             )
+            print(
+                "Results per points:",
+                metrics_results[metric_name]["point_metric"],
+            )
             message = f"""Computed metric: {metric_name}
             \nMean: {np.mean(metrics_results[metric_name]["point_metric"])}
             \nStd: {np.std(metrics_results[metric_name]["point_metric"])}
@@ -349,7 +354,7 @@ class EvalStitching(ArgSchemaParser):
         overlap_ratio: Optional[float] = 0.10,
         orientation: Optional[str] = "x",
         max_relative_threshold: Optional[float] = 0.2,
-        pt_threshold: Optional[int] = 5
+        pt_threshold: Optional[int] = 5,
     ) -> List[np.ndarray]:
         """
         Runs misalignment metric for stitching

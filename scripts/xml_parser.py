@@ -109,9 +109,9 @@ class TeraStitcherXMLParser:
             if val < 0:
                 negative = "-"
 
-            refs[
-                ref.replace("@", "")
-            ] = f"{negative}{self.terastitcher_reference_order[abs(val)][0]}"
+            refs[ref.replace("@", "")] = (
+                f"{negative}{self.terastitcher_reference_order[abs(val)][0]}"
+            )
 
         # Mapping voxel dims
         voxels = {}
