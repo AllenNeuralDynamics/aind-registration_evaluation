@@ -19,7 +19,6 @@ dependencies = [
   'argschema',
   'scikit-image',
   'ome-zarr',
-  'argschema',
   'matplotlib',
   'numpy',
   'zarr',
@@ -28,7 +27,14 @@ dependencies = [
   'tifffile',
   'phasepack',
   'pyfftw',
-  'natsort'
+  'natsort',
+  'dask-image',
+  'imageio',
+  'opencv-python',
+  'openpyxl',
+  'statsmodels',
+  'xlsxwriter',
+  'z5py'
 ]
 
 [project.optional-dependencies]

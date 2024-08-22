@@ -17,6 +17,8 @@ from aind_registration_evaluation._shared.types import ArrayLike
 from aind_registration_evaluation.io import ImageReader
 
 from ._metric import ImageMetrics
+from sklearn.metrics import mutual_info_score, normalized_mutual_info_score
+from scipy.stats import entropy
 
 
 class SmallImageMetrics(ImageMetrics):
@@ -97,8 +99,29 @@ class SmallImageMetrics(ImageMetrics):
 
         point_1_windowed = windowed_points[0]
         point_2_windowed = windowed_points[1]
+        
+        img1 = self.image_1
+        img2 = self.image_2
 
-        # image_2_shape = self.image_2.shape
+        minPoints1 = [np.min(row) for row in point_1_windowed]
+        minPoints2 = [np.min(row) for row in point_2_windowed]          
+        maxPoints1 = [np.max(row) for row in point_1_windowed]
+        maxPoints2 = [np.max(row) for row in point_2_windowed]
+
+        # Calculate padding amounts
+        paddingMin1 = [abs(minPoints1[i]) + 1 if minPoints1[i] <= 0 else 0 for i in range(len(minPoints1))]
+        paddingMin2 = [abs(minPoints2[i]) + 1 if minPoints2[i] <= 0 else 0 for i in range(len(minPoints2))]
+        padding1 = [maxPoints1[i] - img1.shape[i] + 1 if maxPoints1[i] >= img1.shape[i] else 0 for i in range(len(maxPoints1))]
+        padding2 = [maxPoints2[i] - img2.shape[i] + 1 if maxPoints2[i] >= img2.shape[i] else 0 for i in range(len(maxPoints2))]
+
+        # Determine padding width for each dimension
+        pad_width1 = [(paddingMin1[i], padding1[i]) for i in range(len(padding1))]
+        pad_width2 = [(paddingMin2[i], padding2[i]) for i in range(len(padding2))]
+
+        # Pad the images
+        padded_img1 = np.pad(img1, pad_width=pad_width1, mode='constant', constant_values=0)
+        padded_img2 = np.pad(img2, pad_width=pad_width2, mode='constant', constant_values=0)
+
         len_dims = len(point_1_windowed)
 
         patch_1 = None
@@ -117,14 +140,14 @@ class SmallImageMetrics(ImageMetrics):
         # )
 
         if len_dims == 2:
-            patch_1 = self.image_1[point_1_windowed[0], point_1_windowed[1]]
-            patch_2 = self.image_2[point_2_windowed[0], point_2_windowed[1]]
+            patch_1 = padded_img1[point_1_windowed[0], point_1_windowed[1]]
+            patch_2 = padded_img2[point_2_windowed[0], point_2_windowed[1]]
 
         elif len_dims == 3:
-            patch_1 = self.image_1[
+            patch_1 = padded_img1[
                 point_1_windowed[0], point_1_windowed[1], point_1_windowed[2]
             ]
-            patch_2 = self.image_2[
+            patch_2 = padded_img2[
                 point_2_windowed[0], point_2_windowed[1], point_2_windowed[2]
             ]
         else:
@@ -364,7 +387,7 @@ class SmallImageMetrics(ImageMetrics):
         # Multiplicating norms
         denominator = norm_patch_1 * norm_patch_2
 
-        return -(numerator / denominator)
+        return numerator / denominator
 
     def mutual_information(
         self, patch_1: ArrayLike, patch_2: ArrayLike
@@ -388,24 +411,9 @@ class SmallImageMetrics(ImageMetrics):
         float
             Float with the value of the mutual information error.
         """
-        joint_histogram, _, _ = np.histogram2d(patch_1, patch_2)
-        pxy = joint_histogram / np.sum(joint_histogram, dtype=self.dtype)
-        py = np.sum(pxy, axis=0, dtype=self.dtype)
-        px = np.sum(pxy, axis=1, dtype=self.dtype)
-
-        px_py = px[:, None] * py[None, :]
-        non_zero_pxy_pos = pxy > 0
-
-        mutual_information = np.sum(
-            pxy[non_zero_pxy_pos]
-            * np.log(
-                pxy[non_zero_pxy_pos] / px_py[non_zero_pxy_pos],
-                dtype=self.dtype,
-            ),
-            dtype=self.dtype,
-        )
-
-        return mutual_information
+        patch_1 = patch_1.flatten() 
+        patch_2 = patch_2.flatten() 
+        return mutual_info_score(patch_1, patch_2)
 
     def normalized_mutual_information(
         self, patch_1: ArrayLike, patch_2: ArrayLike
@@ -434,28 +442,14 @@ class SmallImageMetrics(ImageMetrics):
             Float with the value of the mutual information error.
         """
 
-        joint_histogram, _, _ = np.histogram2d(patch_1, patch_2)
+        # Check performance of float64 in large-scale datasets
+        # since converting to float64 required way more memory.
+        patch_1 = patch_1.flatten()  # .astype(np.float64)
+        patch_2 = patch_2.flatten()  # .astype(np.float64)
 
-        # Compute marginal histograms
-        joint_histogram = joint_histogram + self.eps
-        joint_histogram = joint_histogram / np.sum(
-            joint_histogram, dtype=self.dtype
-        )
-
-        py = np.sum(joint_histogram, axis=0, dtype=self.dtype)
-        px = np.sum(joint_histogram, axis=1, dtype=self.dtype)
-
-        numerator = np.sum(py * np.log(px), dtype=self.dtype) + np.sum(
-            px * np.log(px), dtype=self.dtype
-        )
-        denominator = (
-            np.sum(joint_histogram * np.log(joint_histogram), dtype=self.dtype)
-            - 1
-        )
-
-        mutual_information = numerator / denominator
-
-        return mutual_information
+        # Compute the Mutual Information between the two image pixel distributions
+        # using skimage
+        return normalized_mutual_info_score(patch_1, patch_2, average_method='geometric')
 
     def information_theoretic_similarity(
         self, patch_1: ArrayLike, patch_2: ArrayLike

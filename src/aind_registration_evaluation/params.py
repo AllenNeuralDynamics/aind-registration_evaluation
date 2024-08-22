@@ -7,7 +7,7 @@ import sys
 
 import marshmallow as mm
 from argschema import ArgSchema
-from argschema.fields import Boolean, Int, List, Nested, Str
+from argschema.fields import Boolean, Int, List, Nested, Str, Float
 from argschema.schemas import DefaultSchema
 from marshmallow import fields, validate
 
@@ -77,7 +77,7 @@ class EvalRegSchema(ArgSchema):
     )
 
     transform_matrix = List(
-        List(Int()),
+        List(Float()),
         required=True,
         metadata={
             "description": """

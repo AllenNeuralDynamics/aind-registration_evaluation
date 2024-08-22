@@ -460,47 +460,16 @@ class LargeImageMetrics(ImageMetrics):
             Float with the value of the mutual information error.
         """
 
-        value_error = None
-
-        try:
-            range_bin_patch_1 = [
-                da.min(patch_1).compute(),
-                da.max(patch_1).compute(),
-            ]
-            range_bin_patch_2 = [
-                da.min(patch_2).compute(),
-                da.max(patch_2).compute(),
-            ]
-
-            range_bins = [range_bin_patch_1, range_bin_patch_2]
-
-            joint_histogram, _, _ = da.histogram2d(
-                patch_1, patch_2, bins=(10, 10), range=range_bins
-            )
-
-            pxy = joint_histogram / da.sum(joint_histogram, dtype=self.dtype)
-            py = da.sum(pxy, axis=0, dtype=self.dtype)
-            px = da.sum(pxy, axis=1, dtype=self.dtype)
-
-            px_py = px[:, None] * py[None, :]
-            non_zero_pxy_pos = pxy > 0
-
-            value_error = da.sum(
-                pxy[non_zero_pxy_pos]
-                * da.log(
-                    pxy[non_zero_pxy_pos] / px_py[non_zero_pxy_pos],
-                    dtype=self.dtype,
-                ),
-                dtype=self.dtype,
-            )
-
-            if self.compute_dask:
-                value_error = value_error.compute()
-
-        except ValueError:
-            value_error = None
-
-        return value_error
+        # Flatten the patches
+        patch_1_flat = patch_1.flatten()
+        patch_2_flat = patch_2.flatten()
+        
+        # Convert to NumPy arrays
+        patch_1_np = patch_1_flat.compute()
+        patch_2_np = patch_2_flat.compute()
+        
+        # Calculate mutual information score
+        return mutual_info_score(patch_1_np, patch_2_np)
 
     def normalized_mutual_information(
         self, patch_1: ArrayLike, patch_2: ArrayLike
@@ -535,55 +504,12 @@ class LargeImageMetrics(ImageMetrics):
             Float with the value of the mutual information error.
         """
 
-        value_error = None
+        # Flatten and compute Dask arrays
+        patch_1_np = patch_1.flatten().compute()
+        patch_2_np = patch_2.flatten().compute()
 
-        try:
-            # Normalised Mutual Information of: A normalized entropy
-            # measure of 3-D medical image alignment, Studholme,
-            # jhill & jhawkes (1998).
-
-            range_bin_patch_1 = [
-                da.min(patch_1).compute(),
-                da.max(patch_1).compute(),
-            ]
-            range_bin_patch_2 = [
-                da.min(patch_2).compute(),
-                da.max(patch_2).compute(),
-            ]
-
-            range_bins = [range_bin_patch_1, range_bin_patch_2]
-
-            joint_histogram, _, _ = da.histogram2d(
-                patch_1, patch_2, bins=(10, 10), range=range_bins
-            )
-            joint_histogram += self.eps
-
-            joint_histogram = joint_histogram / da.sum(
-                joint_histogram, dtype=self.dtype
-            )
-
-            py = da.sum(joint_histogram, axis=0, dtype=self.dtype)
-            px = da.sum(joint_histogram, axis=1, dtype=self.dtype)
-
-            numerator = da.sum(py * da.log(px), dtype=self.dtype) + da.sum(
-                px * da.log(px), dtype=self.dtype
-            )
-            denominator = (
-                da.sum(
-                    joint_histogram * da.log(joint_histogram), dtype=self.dtype
-                )
-                - 1
-            )
-
-            value_error = numerator / denominator
-
-            if self.compute_dask:
-                value_error = value_error.compute()
-
-        except ValueError:
-            value_error = None
-
-        return value_error
+        # Calculate normalized mutual information score
+        return normalized_mutual_info_score(patch_1_np, patch_2_np, average_method='geometric')
 
     def information_theoretic_similarity(
         self, patch_1: ArrayLike, patch_2: ArrayLike

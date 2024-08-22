@@ -85,6 +85,27 @@ These are some metric examples:
 ## Note
 > If you want to visualize points in the images, you could activate the visualize flag the package accepts. However, make sure these images are able to fix in memory.
 
+## Run Full Report
+To run the full report find the full_report.py class in scripts and move it in the source folder. You can adjust what metrics you are interested in by changing the parameters of the ImageAnalysis instantiation. 
+
+By running run_to_excel, you will create an excel file, displaying all the results of the analysis. These include MI and NMI for the following evaluation approaches:
+- Run the analysis on the full image and output the results unnormalized and normalized
+- Run the analysis on Regions of interest patches. These ROIs are defined as closely located, labeled regions across the two images, based on the inputted masks.
+- Run the analysis on the full matching masks. Matching masks are created by leaving the labeled matching ROIs in the image and nulling everything else.
+- Run the analysis on the ROI patches of the matching masks.
+
+- Additionally, you will receive the number of ROIs (e.g. cells in each image) and the number of matches across the two images based on location
+- Lastly, on another sheet (sheetname linked to a certain run), you will find the fraction of matching cells across the two images out of the maximum number of cells.
+
+Example Report:
+![image](https://github.com/user-attachments/assets/6ccf2842-65d4-4d6e-81c4-75b0f6bb2d7a)
+![image](https://github.com/user-attachments/assets/c18db2ce-536d-40d0-bd3f-88e1ee324993)
+
+
+
+
+
+
 ## Installation
 To use the software, in the root directory, run
 ```

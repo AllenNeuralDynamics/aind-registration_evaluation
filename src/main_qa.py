@@ -21,6 +21,20 @@ from aind_registration_evaluation.params import EvalRegSchema
 from aind_registration_evaluation.sample import *
 from aind_registration_evaluation.util.intersection import \
     generate_overlap_slices
+from scipy.ndimage import affine_transform
+from aind_registration_evaluation.metric.small_scale import SmallImageMetrics
+from aind_registration_evaluation.util.extract_roi import get_ROIs, get_ROIs_cellpose, get_ROIs_random_matching, normalized_cross_correlation, normalized_mutual_information, mutual_information
+import statsmodels.api as sm
+import tifffile as tiff
+from aind_registration_evaluation.io._io import ImageReaderFactory
+from sklearn.metrics import normalized_mutual_info_score
+from sklearn.metrics import mutual_info_score
+
+import concurrent.futures
+import dask
+import dask.threaded
+import dask.multiprocessing
+from dask import delayed, compute
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -205,7 +219,6 @@ def calculate_central_value(data, central_type="mean", outlier_threshold=2):
 
     return central_value
 
-
 class EvalStitching(ArgSchemaParser):
     """
     Class to Evaluate Stitching.
@@ -253,14 +266,12 @@ class EvalStitching(ArgSchemaParser):
 
         image_1_shape = image_1_data.shape
         image_2_shape = image_2_data.shape
-        print(image_1_shape)
 
         # calculate extent of overlap using transforms
         # in common coordinate system (assume for image 1)
         bounds_1, bounds_2 = util.calculate_bounds(
             image_1_shape, image_2_shape, transform
         )
-        print("Bounds: ", bounds_1, bounds_2)
 
         # Sample points in overlapping bounds
         points = sample.sample_points_in_overlap(
@@ -273,7 +284,7 @@ class EvalStitching(ArgSchemaParser):
         pruned_points = sample.prune_points_to_fit_window(
             image_1_shape, points, self.args["window_size"]
         )
-
+        print("PrunedPoints: ", pruned_points)
         discarded_points_window = points.shape[0] - pruned_points.shape[0]
         LOGGER.info(
             f"Number of discarded points when prunning points to window: {discarded_points_window}",
@@ -294,6 +305,7 @@ class EvalStitching(ArgSchemaParser):
                     self.args["window_size"],
                 )
             )
+
 
         for pruned_point in pruned_points:
             for metric in metrics:
@@ -338,6 +350,8 @@ class EvalStitching(ArgSchemaParser):
                     transform,
                     metric_name,
                 )
+        
+        return metrics_results
 
     def run_misalignment(
         self,
